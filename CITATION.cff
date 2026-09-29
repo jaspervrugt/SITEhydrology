@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use SITEhydrology, please cite the software and relevant papers."
+title: "SITEhydrology"
+type: software
+version: 1.0.0
+date-released: 2026-09-28
+authors:
+  - family-names: Vrugt
+    given-names: Jasper A.
+    affiliation: University of California, Irvine
+    email: jasper@uci.edu
+repository-code: "https://github.com/jaspervrugt/SITEhydrology"
+license: BSD-3-Clause
+keywords:
+  - hydrology
+  - basin-specific calibration
+  - conceptual hydrologic models
+  - analytic gradients
+  - model benchmarking
+

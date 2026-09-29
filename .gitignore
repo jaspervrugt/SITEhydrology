@@ -1,0 +1,42 @@
+# Public SITEhydrology source allow-list. Files are ignored unless explicitly
+# included below, preventing GUI source and local development artifacts from
+# being published accidentally.
+*
+
+!/.gitignore
+!/README.md
+!/LICENSE
+!/CITATION.cff
+!/GUI-LICENSE-NOTICE.md
+
+!/src/
+!/src/**
+!/utils/
+!/utils/**
+!/results/
+!/results/**
+!/examples/
+!/examples/demo_SITE.mlx
+
+# MATLAB/editor artifacts inside included directories
+src/*.asv
+src/*.autosave
+src/*.bak
+src/*.tmp
+src/*.m~
+utils/**/*.asv
+utils/**/*.autosave
+utils/**/*.bak
+utils/**/*.tmp
+utils/**/*.m~
+results/**/*.tmp
+results/**/*.bak
+results/**/~$*
+
+# Platform-specific build products inside included directories
+src/*.mexw64
+src/*.mexa64
+src/*.mexmaci64
+utils/**/*.mexw64
+utils/**/*.mexa64
+utils/**/*.mexmaci64
