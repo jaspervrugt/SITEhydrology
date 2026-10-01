@@ -7,7 +7,10 @@ data-reading, sensitivity, and diagnostic infrastructure provided by
 a separate parameter vector for each basin rather than learning parameters
 from static basin attributes.
 
-![SITEhydrology Notes and live run summary](docs/screenshots/site_notes_summary.png)
+<p align="center">
+  <a href="docs/screenshots/site_notes_summary.png"><img src="docs/screenshots/site_notes_summary.png" alt="SITEhydrology Notes and live run summary" width="900"></a><br>
+  <em>Figure 1. SITE Notes workspace and live summary of basin-specific calibration progress.</em>
+</p>
 
 The graphical interface combines configuration, live calibration progress,
 runtime diagnostics, readiness checks, and basin-level results in a single
@@ -48,7 +51,10 @@ export records the selected model, region, data resolution, periods, loss
 function, optimizer, and numerical settings for reproducible source-based
 execution.
 
-![Exported SITE MATLAB configuration](docs/screenshots/site_matlab_export.png)
+<p align="center">
+  <a href="docs/screenshots/site_matlab_export.png"><img src="docs/screenshots/site_matlab_export.png" alt="Exported SITE MATLAB configuration" width="900"></a><br>
+  <em>Figure 2. MATLAB script exported by SITE for reproducible source-based calibration.</em>
+</p>
 
 A typical workspace is:
 
@@ -69,7 +75,10 @@ The GUI uses the regional data infrastructure provided by SAGEhydrology. It
 shows installed and supported regions, local data availability, and the
 hydroclimatic organization of the selected basin collection.
 
-![SITEhydrology regional paths and hydroclimatic zones](docs/screenshots/site_paths_zones.png)
+<p align="center">
+  <a href="docs/screenshots/site_paths_zones.png"><img src="docs/screenshots/site_paths_zones.png" alt="SITEhydrology regional paths and hydroclimatic zones" width="900"></a><br>
+  <em>Figure 3. Regional data paths, supported domains, and hydroclimatic-zone organization.</em>
+</p>
 
 ## Results
 
@@ -85,7 +94,10 @@ while a calibration is running. Median and mean summaries report predictive
 scores, integrated basin losses, parameter dimensions, and the number of
 basins represented by each saved benchmark.
 
-![SITEhydrology calibration controls and model comparison](docs/screenshots/site_model_comparison.png)
+<p align="center">
+  <a href="docs/screenshots/site_model_comparison.png"><img src="docs/screenshots/site_model_comparison.png" alt="SITEhydrology calibration controls and model comparison" width="900"></a><br>
+  <em>Figure 4. Calibration controls and basin-wise comparison of stored hydrologic-model results.</em>
+</p>
 
 The current JKGE columns use the default definition: `M = 2`, moving-average
 mean benchmark operator, and a 31-day window. Runs using other JKGE settings
