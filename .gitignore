@@ -17,6 +17,9 @@
 !/results/**
 !/examples/
 !/examples/demo_SITE.mlx
+!/docs/
+!/docs/screenshots/
+!/docs/screenshots/*.png
 
 # MATLAB/editor artifacts inside included directories
 src/*.asv
