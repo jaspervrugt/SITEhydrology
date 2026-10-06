@@ -13,8 +13,7 @@ Patch release updating the public computational source and the Windows applicati
 
 ## Downloads and installation
 
-The Windows installer obtains MATLAB Runtime R2026a from MathWorks when needed.
-The portable ZIP requires MATLAB Runtime R2026a already installed. It contains the same compiled SITE application, public source support files, and a manual user-model template. The separate executable is intended for replacing an existing Windows installation.
+The Windows installer obtains MATLAB Runtime R2026a from MathWorks when needed. The portable ZIP requires MATLAB Runtime R2026a already installed. It contains the same compiled SITE application, public source support files, and a manual user-model template. The separate executable is intended for replacing an existing Windows installation.
 
 Place SITE.exe beside Data/, SAGEhydrology/, SITEhydrology/, and user_model/, or select your folders in the Paths tab. The public MATLAB source requires SAGEhydrology v1.0.3 or later alongside SITEhydrology. Custom C++ models must be compiled externally for the target operating system; update their parameter metadata and restart SITE after replacing the MEX.
 
