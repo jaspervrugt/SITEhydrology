@@ -128,3 +128,15 @@ datasets and assets remain subject to their respective licenses.
 Jasper A. Vrugt  
 University of California, Irvine  
 jasper@uci.edu
+
+
+## macOS downloads available
+
+SITE v1.0.1 now includes macOS builds for **Apple Silicon (arm64)** alongside the existing Windows downloads.
+
+- `SITE-v1.0.1-macOS-arm64-installer.zip`: unzip and run the installer application; MATLAB Runtime R2026a is obtained when required.
+- `SITE-v1.0.1-macOS-arm64.dmg`: disk image containing the application; requires the Apple Silicon MATLAB Runtime R2026a.
+
+Download both options from [the v1.0.1 release](https://github.com/jaspervrugt/SITEhydrology/releases/tag/v1.0.1). These packages target Apple Silicon; they are not Intel Mac builds.
+
+The supplied macOS build report records arm64 launcher, native MEX, ZIP and DMG checks. Downloaded file hashes were verified against that report. Windows downloads are unchanged.
