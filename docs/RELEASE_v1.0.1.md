@@ -20,6 +20,17 @@ Place SITE.exe beside Data/, SAGEhydrology/, SITEhydrology/, and user_model/, or
 
 GUI source, private model implementations, AI-assisted authoring, and locally generated results are excluded from this update. Existing published benchmark results in the repository remain unchanged.
 
-This release supplies Windows artifacts. The existing macOS v1.0.0 release remains available; v1.0.1 must be built separately on macOS.
+This release includes Windows x64 and macOS Apple Silicon (arm64) downloads.
 
 The public computational source uses the repository LICENSE. The compiled application uses GUI-LICENSE-NOTICE.md. SHA256SUMS.txt lists the release asset hashes.
+
+## macOS downloads available
+
+SITE v1.0.1 now includes macOS builds for **Apple Silicon (arm64)** alongside the existing Windows downloads.
+
+- `SITE-v1.0.1-macOS-arm64-installer.zip`: unzip and run the installer application; MATLAB Runtime R2026a is obtained when required.
+- `SITE-v1.0.1-macOS-arm64.dmg`: disk image containing the application; requires the Apple Silicon MATLAB Runtime R2026a.
+
+Download both options from [the v1.0.1 release](https://github.com/jaspervrugt/SITEhydrology/releases/tag/v1.0.1). These packages target Apple Silicon; they are not Intel Mac builds.
+
+The supplied macOS build report records arm64 launcher, native MEX, ZIP and DMG checks. Downloaded file hashes were verified against that report. Windows downloads are unchanged.
