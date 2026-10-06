@@ -37,7 +37,8 @@ function output = run_SITE(C)
     % argument is reserved for starting points, not optimizer settings.
     C.alg.options = optimizerOpts;
     
-    siteRoot = fullfile(C.root,'SITEhydrology');
+    siteRoot = local_get(C,'SITEhydro', ...
+        fullfile(C.root,'SITEhydrology'));
     sageRoot = local_get(C,'SAGEhydro', ...
         fullfile(C.root,'SAGEhydrology'));
     resultRoot = local_get(C,'resultDir', ...
@@ -48,7 +49,9 @@ function output = run_SITE(C)
             fullfile(siteRoot,'utils','results'));
         addpath(fullfile(sageRoot,'utils'));
     end
-    bootstrap_SAGE(C.root,C.region,resultRoot);
+    % SAGE and SITE need not share a common parent. bootstrap_SAGE still
+    % accepts the parent of the selected SAGEhydrology installation.
+    bootstrap_SAGE(fileparts(sageRoot),C.region,resultRoot);
     
     useGchmOde = strcmpi(string(C.model),'gchm_ode');
     mdl = struct();
@@ -84,7 +87,7 @@ function output = run_SITE(C)
         [mdl,misc,status] = crr_prepare_backend(mdl,misc);
     end
     fprintf('SITE backend: %s.\n',status);
-    local_ui_log(ui,sprintf('(1) CRR backend ... %s.',status));
+    local_ui_log(ui,sprintf('(01) CRR backend ... %s.',status));
     if useGchmOde
         [mdl,d] = read_gchm_ode_info(mdl,C.prd);
     else
@@ -112,15 +115,53 @@ function output = run_SITE(C)
             ['Parameter bounds must be finite %d-vectors with ' ...
             'each lower bound smaller than its upper bound.'],d);
     end
+
+    % Resolve and approve a same-name model schema replacement before
+    % loading basin data or modifying any result registry/workbook.
+    dtTag = local_dt_tag(C.prd.dt);
+    if useGchmOde
+        modelName = 'gchm_ode';
+    else
+        modelName = lower(char(sage_model_name(mdl.model)));
+    end
+    resultDir = local_get(C,'resultDir',fullfile(siteRoot,'results'));
+    [~,resultRegion] = fileparts(char(resultDir));
+    if ~strcmpi(resultRegion,char(C.region))
+        resultDir = fullfile(resultDir,char(C.region));
+    end
+    rangeFile = fullfile(resultDir,sprintf( ...
+        'param_ranges_%s_%s.csv',modelName,dtTag));
+    schemaChange = local_parameter_schema_change( ...
+        rangeFile,mdl.par_names);
+    if schemaChange.changed
+        proceed = local_confirm_schema_replacement(ui, ...
+            modelName,schemaChange);
+        if ~proceed
+            error('SITE:RunCancelled', ...
+                ['SITE run cancelled before replacing the existing ' ...
+                '%s result files.'],upper(modelName));
+        end
+    end
+    revisionChange = local_result_revision_change(resultDir,modelName, ...
+        dtTag,C.region,C.meteo,C.prd,mdl);
+    if revisionChange.changed
+        proceed = local_confirm_revision_replacement(ui, ...
+            modelName,revisionChange);
+        if ~proceed
+            error('SITE:RunCancelled', ...
+                ['SITE run cancelled before replacing the existing ' ...
+                '%s result files.'],upper(modelName));
+        end
+    end
     
     bas = struct('sample','file');
     bas.K = local_count_ids(C.file_univ);
     bas.K_t = bas.K;
     bas.K_e = 0;
     dataClock = tic;
-    local_ui_log(ui,'(2) read basin attributes ...');
+    local_ui_log(ui,'(02) read basin attributes ...');
     [~,allIDs,gname,zone] = read_attr(C.region,C.dirD,bas);
-    local_ui_log(ui,'(3) select basins ...');
+    local_ui_log(ui,'(03) select basins ...');
     [~,bas] = sample_basins([],allIDs,bas,C.prd,gname,zone, ...
         C.dirD,C.file_univ,C.file_univ);
     
@@ -137,7 +178,7 @@ function output = run_SITE(C)
         wanted = (1:bas.K).';
     end
     
-    local_ui_log(ui,'(4) build train/eval time split ...');
+    local_ui_log(ui,'(04) build train/eval time split ...');
     [split,mdl] = build_split(mdl,C.prd,bas);
     meteoRead = C.meteo;
     progressf = [];
@@ -148,36 +189,36 @@ function output = run_SITE(C)
     if ~isempty(progressf)
         K = bas.K;
         progressf(sprintf( ...
-            '(5) read meteorological data ... [0/%d,  0.0%% done]',K),true);
+            '(05) read meteorological data ... [0/%d,  0.0%% done]',K),true);
         meteoRead.progressFcn = @(k) progressf(sprintf( ...
-            '(5) read meteorological data ... [%d/%d,%5.1f%% done]', ...
+            '(05) read meteorological data ... [%d/%d,%5.1f%% done]', ...
             k,K,100*k/K),false);
     else
-        local_ui_log(ui,'(5) read meteorological data ...');
+        local_ui_log(ui,'(05) read meteorological data ...');
     end
     [dat,aux] = read_meteo(C.region,C.dirM,bas,split,meteoRead);
     if ~isempty(progressf)
         progressf(sprintf( ...
-            '(5) read meteorological data ... [%d/%d,100.0%% done]',K,K),false);
-        progressf('(5) read meteorological data ... ','finish');
+            '(05) read meteorological data ... [%d/%d,100.0%% done]',K,K),false);
+        progressf('(05) read meteorological data ... ','finish');
     end
     basRead = bas;
     if ~isempty(progressf)
         progressf(sprintf( ...
-            '(6) read discharge data ... [0/%d,  0.0%% done]',K),true);
+            '(06) read discharge data ... [0/%d,  0.0%% done]',K),true);
         basRead.progressFcn = @(k) progressf(sprintf( ...
-            '(6) read discharge data ... [%d/%d,%5.1f%% done]', ...
+            '(06) read discharge data ... [%d/%d,%5.1f%% done]', ...
             k,K,100*k/K),false);
     else
-        local_ui_log(ui,'(6) read discharge data ...');
+        local_ui_log(ui,'(06) read discharge data ...');
     end
     dat = read_Q(C.region,C.dirQ,mdl,dat,basRead,split,aux);
     if ~isempty(progressf)
         progressf(sprintf( ...
-            '(6) read discharge data ... [%d/%d,100.0%% done]',K,K),false);
-        progressf('(6) read discharge data ... ','finish');
+            '(06) read discharge data ... [%d/%d,100.0%% done]',K,K),false);
+        progressf('(06) read discharge data ... ','finish');
     end
-    local_ui_log(ui,'(7) check data consistency ...');
+    local_ui_log(ui,'(07) check data consistency ...');
     [eligibility,dat] = check_basins(dat,mdl,bas);
 
     % Mirror SAGE's data-quality summary in SITE_ui and restrict the
@@ -220,7 +261,7 @@ function output = run_SITE(C)
     end
     
     % Prepare all cached statistics, including JKGE and FDC, once.
-    local_ui_log(ui,'(8) prepare diagnostic statistics ...');
+    local_ui_log(ui,'(08) prepare diagnostic statistics ...');
     diagnosticLoss = C.loss;
     diagnosticLoss.fnc = 7;
     [dat,diagnosticLoss] = prep_stats(dat,mdl,split,diagnosticLoss);
@@ -238,17 +279,6 @@ function output = run_SITE(C)
             'release will store separate JKGE configurations.']);
     end
     
-    dtTag = local_dt_tag(C.prd.dt);
-    if useGchmOde
-        modelName = 'gchm_ode';
-    else
-        modelName = lower(char(sage_model_name(mdl.model)));
-    end
-    resultDir = local_get(C,'resultDir',fullfile(siteRoot,'results'));
-    [~,resultRegion] = fileparts(char(resultDir));
-    if ~strcmpi(resultRegion,char(C.region))
-        resultDir = fullfile(resultDir,char(C.region));
-    end
     if ~isfolder(resultDir)
         [made,message] = mkdir(resultDir);
         if ~made
@@ -258,11 +288,9 @@ function output = run_SITE(C)
         end
     end
     ids = string(bas.id_gauge(:));
-    rangeFile = fullfile(resultDir,sprintf( ...
-        'param_ranges_%s_%s.csv',modelName,dtTag));
     rangeID = get_or_register_param_range(rangeFile, ...
         mdl.par_names,mdl.th_min,mdl.th_max);
-    local_ui_log(ui,'(9) load SITE results ...');
+    local_ui_log(ui,'(09) load SITE results ...');
     store = site_result_store('load',resultDir,modelName, ...
         dtTag,ids,mdl,rangeID,diagnosticLoss.fdc.Q.D0t, ...
         diagnosticLoss.fdc.Q.D0e,diagnosticLoss.fdc.Q.D0pt, ...
@@ -326,6 +354,118 @@ function output = run_SITE(C)
         'parallel',useParallel, ...
         'pool',pool, ...
         'eligibility',eligibility);
+end
+
+function change = local_parameter_schema_change(rangeFile,parNames)
+change = struct('changed',false,'oldCounts',zeros(0,1), ...
+    'newCount',numel(parNames),'rangeFile',rangeFile);
+if ~isfile(rangeFile), return, end
+try
+    T = readtable(rangeFile,'TextType','string');
+    required = {'range_id','n_par','symbol'};
+    if ~all(ismember(required,T.Properties.VariableNames)) || isempty(T)
+        return
+    end
+    ids = unique(double(T.range_id(:))).';
+    expected = string(parNames(:));
+    counts = zeros(numel(ids),1);
+    matching = false;
+    for k = 1:numel(ids)
+        Ti = T(double(T.range_id) == ids(k),:);
+        [~,order] = sort(double(Ti.n_par));
+        Ti = Ti(order,:);
+        counts(k) = height(Ti);
+        if height(Ti) == numel(expected) ...
+                && isequal(string(Ti.symbol(:)),expected)
+            matching = true;
+        end
+    end
+    change.changed = ~matching;
+    change.oldCounts = unique(counts);
+catch exception
+    warning('SITE:SchemaInspectionFailed', ...
+        'Could not inspect %s before the run: %s', ...
+        rangeFile,exception.message);
+end
+end
+
+function proceed = local_confirm_schema_replacement(ui,modelName,change)
+oldText = strjoin(string(change.oldCounts(:).'),', ');
+message = sprintf([ ...
+    'Model %s already has SITE results with a different parameter ' ...
+    'schema (%s parameters; current model: %d). Continuing will replace ' ...
+    'the existing XLS/MAT results for this exact model name.'], ...
+    upper(modelName),oldText,change.newCount);
+local_ui_log(ui,['WARNING: ' message]);
+if isstruct(ui) && isfield(ui,'confirmSchemaChangeFcn') ...
+        && isa(ui.confirmSchemaChangeFcn,'function_handle')
+    proceed = logical(ui.confirmSchemaChangeFcn(struct( ...
+        'modelName',modelName,'message',message, ...
+        'oldParameterCounts',change.oldCounts, ...
+        'newParameterCount',change.newCount, ...
+        'rangeFile',change.rangeFile)));
+else
+    warning('SITE:ParameterSchemaChanged','%s',message);
+    proceed = true;
+end
+end
+
+function change = local_result_revision_change(resultDir,modelName, ...
+        dtTag,region,meteo,prd,mdl)
+change = struct('changed',false,'oldVersion',NaN,'newVersion',NaN, ...
+    'fileMat','','fileBook','');
+if ~isfield(mdl,'result_version') || isempty(mdl.result_version)
+    return
+end
+change.newVersion = double(mdl.result_version);
+try
+    paths = site_result_store('paths',resultDir,modelName,dtTag, ...
+        region,meteo,prd);
+    change.fileMat = paths.fileMat;
+    change.fileBook = paths.fileBook;
+    if isfile(paths.fileMat)
+        previous = load(paths.fileMat,'store');
+        if isfield(previous,'store') ...
+                && isfield(previous.store,'resultVersion')
+            change.oldVersion = double(previous.store.resultVersion);
+        end
+        change.changed = ~isequal(change.oldVersion,change.newVersion);
+    elseif isfile(paths.fileBook)
+        % Workbooks created before result revisions were tracked are
+        % incompatible with a model that explicitly declares a revision.
+        change.changed = true;
+    end
+catch exception
+    warning('SITE:RevisionInspectionFailed', ...
+        'Could not inspect existing %s results before the run: %s', ...
+        upper(modelName),exception.message);
+end
+end
+
+function proceed = local_confirm_revision_replacement(ui,modelName,change)
+if isnan(change.oldVersion)
+    oldText = 'unversioned';
+else
+    oldText = sprintf('revision %g',change.oldVersion);
+end
+message = sprintf([ ...
+    'Model %s already has SITE results from an incompatible model/input ' ...
+    'definition (%s; current revision: %g). Continuing will replace all ' ...
+    'existing XLS/MAT parameters, scores, and histories for this exact ' ...
+    'model name.'],upper(modelName),oldText,change.newVersion);
+local_ui_log(ui,['WARNING: ' message]);
+if isstruct(ui) && isfield(ui,'confirmSchemaChangeFcn') ...
+        && isa(ui.confirmSchemaChangeFcn,'function_handle')
+    proceed = logical(ui.confirmSchemaChangeFcn(struct( ...
+        'modelName',modelName,'message',message, ...
+        'oldResultVersion',change.oldVersion, ...
+        'newResultVersion',change.newVersion, ...
+        'checkpointFile',change.fileMat, ...
+        'workbookFile',change.fileBook)));
+else
+    warning('SITE:ModelResultRevisionChanged','%s',message);
+    proceed = true;
+end
 end
 
 function [store,pool] = local_run_parallel(C,wanted,bas,ids,dat, ...

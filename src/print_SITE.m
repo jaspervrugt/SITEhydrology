@@ -41,19 +41,12 @@ fill_alpha = 0.20;
 line_width = 1.5;
 xL = -1;
 xR =  1;
+visualTheme = sage_visual_theme();
+cTrainScenario = visualTheme.colors.scenario.tt;
+cEvalScenario = visualTheme.colors.scenario.te;
 
-% ---------- colors ----------
-colors = [  0.8500 0.0000 0.0000;   % hymod: red
-            0.0000 0.6000 0.0000;   % hmodel: green
-            0.5000 0.0000 0.7000;   % sacsma: purple
-            0.6000 0.3000 0.1000;   % xinanjiang: brown
-            0.0000 0.4470 0.7410;   % gr4j: blue
-            1.0000 0.5000 0.0000;   % hbv: orange
-            0.9000 0.0000 0.9000;   % cfe_nwm: magenta
-            0.0000 0.7000 0.7000;   % gr4jB: teal/cyan
-            0.8500 0.3250 0.0980;   % gchm: copper
-            0.4940 0.1840 0.5560;   % user_model: violet
-            0.6500 0.6500 0.6500];  % unknown: light gray
+% ---------- canonical model colors ----------
+colors = [visualTheme.colors.model; visualTheme.colors.modelUnknown];
 
 model = mdl.model;
 
@@ -63,7 +56,7 @@ try
 catch
     mdl_pr = sprintf('MODEL_%d',model);
 end
-catalogIds = [1:8 11 99];
+catalogIds = visualTheme.models.ids;
 colorIndex = find(catalogIds == model,1,'first');
 if isempty(colorIndex)
     colorIndex = size(colors,1);
@@ -169,6 +162,10 @@ if needInit
     % Add right y-axes (ticks only) via overlay axes
     ax = local_add_right_yaxis_overlay(ax,'t');
     ax = local_add_right_yaxis_overlay(ax,'e');
+    set(ax.t,'XColor',cTrainScenario,'YColor',cTrainScenario);
+    set(ax.e,'XColor',cEvalScenario,'YColor',cEvalScenario);
+    set(ax.tR,'YColor',cTrainScenario);
+    set(ax.eR,'YColor',cEvalScenario);
     drawnow nocallbacks;
     pause(0.001);
 end
@@ -181,10 +178,12 @@ title_e = sprintf('\\texttt{%s}: %s ($K_{\\rm t} = %d$)', ...
 % --> reflects the number of finite NSE values; should equal # train basins
 title(ax.t,title_t, ...
     'fontsize',fntsize_title, ...
-    'interpreter','latex');
+    'interpreter','latex', ...
+    'color',cTrainScenario);
 title(ax.e,title_e, ...
     'fontsize',fntsize_title, ...
-    'interpreter','latex');
+    'interpreter','latex', ...
+    'color',cEvalScenario);
 % keep overlays synced (limits/ticks can change later)
 local_sync_overlay(ax,'t');
 local_sync_overlay(ax,'e');
@@ -311,6 +310,10 @@ end
 % refresh overlays and draw
 local_sync_overlay(ax,'t');
 local_sync_overlay(ax,'e');
+try
+    sage_apply_figure_theme(gcf,sage_visual_theme(),'compact');
+catch
+end
 drawnow nocallbacks;
 pause(0.001);
 

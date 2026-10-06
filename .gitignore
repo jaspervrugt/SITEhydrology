@@ -43,3 +43,5 @@ src/*.mexmaci64
 utils/**/*.mexw64
 utils/**/*.mexa64
 utils/**/*.mexmaci64
+
+!/docs/RELEASE_v1.0.1.md

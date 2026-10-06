@@ -99,6 +99,9 @@ store.profileTag = store.provenance.tag;
     local_result_scope(resultDir,region,dtTag),dtTag,prd,true);
 store.ids = string(ids(:));
 store.parNames = string(mdl.par_names(:));
+if isfield(mdl,'result_version')
+    store.resultVersion = double(mdl.result_version);
+end
 store.columnNames = site_parameter_names(store.parNames);
 store.thMin = mdl.th_min(:);
 store.thMax = mdl.th_max(:);
@@ -129,25 +132,73 @@ store.runtime = nan(K,nMetrics);
 store.updated = NaT(K,nMetrics);
 store.rangeID = nan(K,nMetrics);
 store.runCount = zeros(K,nMetrics);
+store.improvementCount = zeros(K,nMetrics);
 
 if isfile(store.fileMat)
     previous = load(store.fileMat,'store');
-    if ~isfield(previous,'store') ...
+    baseMismatch = ~isfield(previous,'store') ...
             || ~isfield(previous.store,'provenance') ...
+            || ~isfield(previous.store,'ids') ...
             || ~isequaln(previous.store.provenance,store.provenance) ...
             || (isfield(previous.store,'periodID') ...
             && previous.store.periodID ~= store.periodID) ...
-            || ~isequal(previous.store.ids,store.ids) ...
-            || ~isequal(previous.store.parNames,store.parNames)
+            || ~isequal(previous.store.ids,store.ids);
+    if baseMismatch
         error('SITE:CheckpointMismatch', ...
             ['Checkpoint does not match forcing, PET, basin IDs, ' ...
-            'or parameters: %s'],store.fileMat);
+            'or period: %s'],store.fileMat);
     end
-    store = local_merge_previous(store,previous.store);
+    revisionMismatch = isfield(store,'resultVersion') ...
+        && (~isfield(previous.store,'resultVersion') ...
+        || ~isequal(previous.store.resultVersion,store.resultVersion));
+    if ~isfield(previous.store,'parNames') ...
+            || ~isequal(previous.store.parNames,store.parNames) ...
+            || revisionMismatch
+        local_save(store);
+        fprintf(['SITE: updated the existing result files to the current ' ...
+            'model definition; obsolete parameters and scores were ' ...
+            'cleared.\n']);
+    else
+        store = local_merge_previous(store,previous.store);
+    end
 elseif isfile(store.fileBook)
-    store = local_import_workbook(store);
-    save(store.fileMat,'store','-v7.3');
-    fprintf('SITE: restored checkpoint from %s.\n',store.fileBook);
+    if isfield(store,'resultVersion')
+        % A workbook alone cannot prove which result-producing model/input
+        % revision created it. Start clean for explicitly versioned models.
+        local_save(store);
+        fprintf(['SITE: replaced an unversioned workbook with the current ' ...
+            'model definition; obsolete parameters and scores were ' ...
+            'cleared.\n']);
+    elseif local_workbook_schema_matches(store)
+        store = local_import_workbook(store);
+        save(store.fileMat,'store','-v7.3');
+        fprintf('SITE: restored checkpoint from %s.\n',store.fileBook);
+    else
+        local_save(store);
+        fprintf(['SITE: updated the existing workbook to the current ' ...
+            '%d-parameter schema; obsolete parameters and scores were ' ...
+            'cleared.\n'],d);
+    end
+end
+
+function matches = local_workbook_schema_matches(store)
+% Verify the exact parameter-column layout before importing a workbook.
+matches = false;
+try
+    sheets = string(sheetnames(store.fileBook));
+    metric = string(store.metricNames{1});
+    if ~any(sheets == metric), return, end
+    header = string(readcell(store.fileBook,'Sheet',metric,'Range','1:1'));
+    d = numel(store.columnNames);
+    if numel(header) < 2*d + 4, return, end
+    normalized = "n_" + store.columnNames(:).';
+    physical = store.columnNames(:).';
+    matches = isequal(header(3:2+d),normalized) ...
+        && strcmpi(header(3+d),'RangeID') ...
+        && isequal(header(5+d:4+2*d),physical);
+catch
+    matches = false;
+end
 end
 end
 
@@ -281,6 +332,19 @@ if any(sheets == "RunCounts")
             else
                 error('SITE:WorkbookRunCountInvalid', ...
                     'Invalid %s count for basin %d.',label,k);
+            end
+            improvementLabel = [store.metricNames{j} '_improvements'];
+            improvementColumn = find(strcmp(headings,improvementLabel),1);
+            if ~isempty(improvementColumn)
+                improvementValue = local_import_number(row{improvementColumn});
+                if isfinite(improvementValue) && improvementValue >= 0 ...
+                        && improvementValue == fix(improvementValue)
+                    store.improvementCount(k,j) = improvementValue;
+                else
+                    error('SITE:WorkbookImprovementCountInvalid', ...
+                        'Invalid %s count for basin %d.', ...
+                        improvementLabel,k);
+                end
             end
         end
     end
@@ -443,6 +507,8 @@ for j = 1:numel(store.metricNames)
         || (~store.maximize(j) && candidate < incumbent);
     if improves
         if isfinite(incumbent)
+            store.improvementCount(k,j) = ...
+                store.improvementCount(k,j) + 1;
             fprintf(['    Improved stored %s: ' ...
                 '%.6g -> %.6g (loss function: %s).\n'], ...
                 store.metricNames{j}, ...
@@ -474,7 +540,8 @@ else
     oldNames = ["NSE","KGE","SAR","RSS","Huber","FDC","JKGE"];
 end
 newNames = string(store.metricNames);
-fields2 = {'train','eval','optimizedLoss','optimizer','runtime','updated','rangeID'};
+fields2 = {'train','eval','optimizedLoss','optimizer','runtime','updated'};
+fields2{end + 1} = 'rangeID';
 fields3 = {'nTheta','theta'};
 for oldIndex = 1:numel(oldNames)
     newIndex = find(strcmpi(newNames,oldNames(oldIndex)),1);
@@ -497,6 +564,16 @@ if isfield(old,'runCount') && isfield(old,'metricNames')
         newIndex = find(strcmpi(newNames,oldNames(oldIndex)),1);
         if ~isempty(newIndex) && size(old.runCount,2) >= oldIndex
             store.runCount(:,newIndex) = old.runCount(:,oldIndex);
+        end
+    end
+end
+if isfield(old,'improvementCount') && isfield(old,'metricNames')
+    for oldIndex = 1:numel(oldNames)
+        newIndex = find(strcmpi(newNames,oldNames(oldIndex)),1);
+        if ~isempty(newIndex) ...
+                && size(old.improvementCount,2) >= oldIndex
+            store.improvementCount(:,newIndex) = ...
+                old.improvementCount(:,oldIndex);
         end
     end
 end
@@ -535,11 +612,20 @@ if isfinite(divergence) && divergence >= 0 ...
 end
 end
 function local_save(store)
-save(store.fileMat,'store','-v7.3');
+% HDF5 cannot reliably overwrite a Dropbox reparse file while the sync
+% client is processing the preceding checkpoint. Build a complete MAT file
+% on the local disk, then replace the synchronized destination atomically.
+tempMatFile = [tempname '.mat'];
+matCleanup = onCleanup(@() local_delete_if_exists(tempMatFile));
+save(tempMatFile,'store','-v7.3');
+local_replace_file(tempMatFile,store.fileMat);
+clear matCleanup
 
 K = numel(store.ids);
 d = numel(store.parNames);
-tempFileBook = [tempname(store.resultDir) '.xlsx'];
+% Build multi-sheet workbooks outside the Dropbox tree. A sync client can
+% otherwise discover and lock the temporary XLSX between MATLAB sheet writes.
+tempFileBook = [tempname '.xlsx'];
 tempCleanup = onCleanup(@() local_delete_if_exists(tempFileBook));
 for j = 1:numel(store.metricNames)
     T = table((1:K).',store.ids, ...
@@ -581,19 +667,34 @@ R = table((1:K).',store.ids, ...
 for j = 1:numel(store.metricNames)
     R.([store.metricNames{j} '_completed_runs']) = ...
         store.runCount(:,j);
+    R.([store.metricNames{j} '_improvements']) = ...
+        store.improvementCount(:,j);
 end
 writetable(R,tempFileBook,'Sheet','RunCounts');
-movefile(tempFileBook,store.fileBook,'f');
+local_replace_file(tempFileBook,store.fileBook);
 clear tempCleanup
 
 summaryFile = store.fileSummary;
+tempSummaryFile = [tempname '.xlsx'];
+summaryCleanup = onCleanup(@() local_delete_if_exists(tempSummaryFile));
+% The master workbook is shared by models. Preserve its unrelated sheets,
+% but perform all Excel writes on a private copy so Dropbox/Excel cannot
+% interrupt an in-place sheet update.
+if isfile(summaryFile)
+    [copied,message] = copyfile(summaryFile,tempSummaryFile,'f');
+    if ~copied
+        error('SITE:SummaryCopyFailed', ...
+            'Cannot prepare a temporary copy of %s: %s', ...
+            summaryFile,message);
+    end
+end
 F = table((1:K).',store.ids,store.fdcD0t,store.fdcD0e, ...
     store.fdcD0pt,store.fdcD0pe, ...
     store.fdcD0logpt,store.fdcD0logpe, ...
     'VariableNames',{'BasinNumber','BasinID', ...
     'd0_fdc_train','d0_fdc_eval','d0_p_train','d0_p_eval', ...
     'd0_logp_train','d0_logp_eval'});
-writetable(F,summaryFile,'Sheet','FDC_reference', ...
+writetable(F,tempSummaryFile,'Sheet','FDC_reference', ...
     'WriteMode','overwritesheet');
 
 S = table((1:K).',store.ids, ...
@@ -604,10 +705,30 @@ for j = 1:numel(store.metricNames)
     S.([name '_eval']) = store.eval(:,j);
     S.([name '_range_id']) = store.rangeID(:,j);
 end
-writetable(S,summaryFile,'Sheet',store.model, ...
+writetable(S,tempSummaryFile,'Sheet',store.model, ...
     'WriteMode','overwritesheet');
 writecell(local_run_information(store,'Multiple SITE models'), ...
-    summaryFile,'Sheet','Run information','WriteMode','overwritesheet');
+    tempSummaryFile,'Sheet','Run information','WriteMode','overwritesheet');
+local_replace_file(tempSummaryFile,summaryFile);
+clear summaryCleanup
+end
+
+function local_replace_file(source,destination)
+% Replace a Dropbox-synchronized result with bounded retries. Antivirus,
+% sync clients and Excel preview handlers can hold short-lived file locks.
+attempts = 12;
+lastMessage = '';
+for attempt = 1:attempts
+    [ok,lastMessage] = movefile(source,destination,'f');
+    if ok, return, end
+    if attempt < attempts
+        pause(min(0.25*attempt,1));
+    end
+end
+error('SITE:ResultFileReplaceFailed', ...
+    ['Cannot replace %s after %d attempts. Close any Excel or File ' ...
+    'Explorer preview of the workbook and pause Dropbox syncing, then ' ...
+    'retry. Last error: %s'],destination,attempts,lastMessage);
 end
 
 function local_delete_if_exists(fileName)

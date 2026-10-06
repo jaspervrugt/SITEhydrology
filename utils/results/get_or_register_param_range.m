@@ -71,6 +71,35 @@ T.symbol = string(T.symbol);
 T.th_min = double(T.th_min);
 T.th_max = double(T.th_max);
 
+% A parameter-schema change (for example GCHM 36 -> 30 parameters) is not
+% another range configuration. Retire the obsolete registry so active files
+% contain only the current model's parameters. The timestamped backup keeps
+% the historical registry recoverable.
+if ~isempty(T)
+    idsExisting = unique(T.range_id(:)).';
+    schemaMatch = false;
+    for ridExisting = idsExisting
+        Ti = T(T.range_id == ridExisting,:);
+        [~,ordExisting] = sort(Ti.n_par);
+        Ti = Ti(ordExisting,:);
+        if height(Ti) == d ...
+                && isequal(string(Ti.symbol(:)),par_names)
+            schemaMatch = true;
+            break
+        end
+    end
+    if ~schemaMatch
+        backup = local_backup_name(file_param_ranges);
+        [ok,message] = movefile(file_param_ranges,backup,'f');
+        if ~ok
+            error('SITE:ParameterRangeMigrationFailed', ...
+                'Cannot archive obsolete parameter ranges: %s',message);
+        end
+        fprintf('SITE: archived obsolete parameter ranges to %s.\n',backup);
+        T = T([],:);
+    end
+end
+
 % --------------------------
 % Check whether range exists
 % --------------------------
@@ -130,4 +159,10 @@ T.th_min = double(T.th_min);
 T.th_max = double(T.th_max);
 
 writetable(T,file_param_ranges);
+end
+
+function backup = local_backup_name(file)
+[folder,name,ext] = fileparts(file);
+stamp = char(datetime('now','Format','yyyyMMdd_HHmmss_SSS'));
+backup = fullfile(folder,[name '_obsolete_' stamp ext '.bak']);
 end
