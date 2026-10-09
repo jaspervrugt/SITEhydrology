@@ -61,6 +61,7 @@ status.message=sprintf(['Shared benchmarks: %d completed metric fits prepared. '
 logFcn(status.message);
 remote=site_benchmark_github_ui(fig,destination,logFcn);
 if strcmp(remote.state,'submitted'),status.state='submitted';end
+site_benchmark_retry_ui(fig,queue,logFcn);
 end
 
 function deleteTemp(path)
