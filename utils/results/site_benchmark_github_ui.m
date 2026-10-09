@@ -20,11 +20,13 @@ if automatic
 else
     reply=uiconfirm(fig,[ ...
         'Submit default-setting fits for verification on GitHub? ' ...
-        'If the connection fails, SITE will retry while this window stays open.'], ...
+        'If the connection fails, SITE will retry while open and on Windows after it closes. '], ...
         'Contribute SITE benchmarks','Options',{'Submit','Keep local'}, ...
         'DefaultOption',1,'CancelOption',2);
     if ~strcmp(reply,'Submit'),return,end
     setappdata(fig,'SITEBenchmarkRetryApproved',true);
+    try,site_benchmark_background_ui('queue',fig,pendingFile,logFcn);
+    catch,logFcn('Shared benchmarks: background retry could not be configured; pending results remain local.');end
 end
 try
     loaded=load(pendingFile,'submission');
@@ -56,8 +58,12 @@ try
     end
     body=jsonencode(payload); bytes=unicode2native(body,'UTF-8');
     assert(numel(bytes)<=20*1024*1024,'SITE:BenchmarkSize','Submission is too large.');
-    if ~automatic,token=site_benchmark_login_ui(fig,cfg.clientId);end
+    if ~automatic,[token,credential]=site_benchmark_login_ui(fig,cfg.clientId);end
     if isempty(token),return,end
+    if ~automatic
+        try,site_benchmark_background_ui('credential',fig,jsonencode(credential),logFcn);
+        catch,logFcn('Shared benchmarks: sign-in could not be saved securely; retry is limited to this session.');end
+    end
     account=api('get','https://api.github.com/user',token,[],false);
     login=account.login;
     repo=root;

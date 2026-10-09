@@ -8,6 +8,7 @@ import argparse
 import base64
 import hashlib
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -55,28 +56,30 @@ def deliver(root, expected_sha, *, branch='main', index_path='benchmarks/index.j
     assets = release_data["assets"]
     known = {a["name"]: a for a in assets}
     for profile, entry in index["profiles"].items():
-        source = root / entry["path"]
-        if hashlib.sha256(source.read_bytes()).hexdigest() != entry["sha256"]:
-            raise ValueError("Snapshot checksum mismatch")
-        name = f"{profile}_{entry['sha256']}.json"
-        if name not in known:
-            # gh's # syntax changes the asset label, not its filename;
-            # stage the exact immutable asset name in the local output tree.
-            staged = root / name
-            staged.write_bytes(source.read_bytes())
-            subprocess.run(["gh", "release", "upload", TAG, str(staged),
-                            "--repo", REPO], check=True)
-        else:
-            # A matching name is not sufficient: verify GitHub's digest.
-            digest = known[name].get("digest")
-            if digest is None:
-                data = subprocess.check_output(['gh', 'api',
-                    f"repos/{REPO}/releases/assets/{known[name]['id']}",
-                    '--header', 'Accept: application/octet-stream'])
-                digest = 'sha256:' + hashlib.sha256(data).hexdigest()
-            if digest != "sha256:" + entry["sha256"]:
-                raise ValueError("Existing immutable asset digest differs")
-        entry["downloadUrl"] = f"https://github.com/{REPO}/releases/download/{TAG}/{name}"
+        if not re.fullmatch(r"[a-z][a-z0-9_]{0,99}",profile):
+            raise ValueError("Unsafe snapshot profile")
+        # Retain bootstrap and predecessor snapshots before changing pointers.
+        paths={entry["path"],entry.get("original"),entry.get("previous")}-{None}
+        for relative in sorted(paths):
+            match=re.fullmatch(r"snapshots/"+re.escape(profile)+r"/([0-9a-f]{64})\.json",relative)
+            if not match:raise ValueError("Unsafe recovery snapshot path")
+            digest=match.group(1);source=root/relative
+            if relative==entry["path"] and digest!=entry["sha256"]:
+                raise ValueError("Snapshot index digest mismatch")
+            name=f"{profile}_{digest}.json"
+            if source.exists() and hashlib.sha256(source.read_bytes()).hexdigest()!=digest:
+                raise ValueError("Snapshot checksum mismatch")
+            if name not in known:
+                if not source.exists():raise ValueError("Recovery snapshot unavailable")
+                staged=root/name;staged.write_bytes(source.read_bytes())
+                subprocess.run(["gh","release","upload",TAG,str(staged),"--repo",REPO],check=True)
+            else:
+                actual=known[name].get("digest")
+                if actual is None:
+                    data=subprocess.check_output(["gh","api",f"repos/{REPO}/releases/assets/{known[name]['id']}","--header","Accept: application/octet-stream"])
+                    actual="sha256:"+hashlib.sha256(data).hexdigest()
+                if actual!="sha256:"+digest:raise ValueError("Existing immutable asset digest differs")
+        entry["downloadUrl"]=f"https://github.com/{REPO}/releases/download/{TAG}/{profile}_{entry['sha256']}.json"
     if mirror_plan is not None:
         from deliver_result_files import deliver_atomic_results
         deliver_atomic_results(root,index,mirror_plan,branch,index_path,expected_sha)

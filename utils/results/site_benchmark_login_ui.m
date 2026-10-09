@@ -1,14 +1,14 @@
-function token=site_benchmark_login_ui(fig,clientId,cachedOnly)
+function [token,credential]=site_benchmark_login_ui(fig,clientId,cachedOnly)
 if nargin<3,cachedOnly=false;end
 assert(isdeployed && isscalar(fig) && isgraphics(fig,'figure'), ...
     'SITE:BenchmarkGUIRequired','Sign-in requires the compiled SITE GUI.');
 % Memory-only access token. No shared credentials, client secret or disk cache.
-persistent sessionToken
-token='';
+persistent sessionToken sessionCredential
+token='';credential=struct();
 if ~isempty(sessionToken)
     try
         api('get','https://api.github.com/user',sessionToken,[],false);
-        token=sessionToken;return
+        token=sessionToken;if ~isempty(sessionCredential),credential=sessionCredential;end;return
     catch
         sessionToken='';
     end
@@ -35,7 +35,13 @@ while toc(clock)<double(device.expires_in)
         'client_id',clientId,'device_code',device.device_code, ...
         'grant_type','urn:ietf:params:oauth:grant-type:device_code',options);
     if isfield(answer,'access_token')
-        token=answer.access_token;sessionToken=token;return
+        token=answer.access_token;sessionToken=token;
+        credential=struct('clientId',clientId,'access_token',token);
+        if isfield(answer,'refresh_token'),credential.refresh_token=answer.refresh_token;end
+        now=posixtime(datetime('now','TimeZone','UTC'));
+        if isfield(answer,'expires_in'),credential.expiresAt=now+double(answer.expires_in);end
+        if isfield(answer,'refresh_token_expires_in'),credential.refreshExpiresAt=now+double(answer.refresh_token_expires_in);end
+        sessionCredential=credential;return
     end
     if strcmp(answer.error,'slow_down'),interval=interval+5;
     elseif ~strcmp(answer.error,'authorization_pending'),return,end

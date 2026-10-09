@@ -38,6 +38,14 @@ class RemoteZip(io.RawIOBase):
         self._range(0, 0)
 
     def _range(self, start, end):
+        for attempt in range(4):
+            try:
+                return self._range_once(start, end)
+            except (EOFError,TimeoutError):
+                if attempt==3:raise
+                time.sleep(2**(attempt+1))
+
+    def _range_once(self, start, end):
         request = urllib.request.Request(ZIP_URL, headers={
             'Range': f'bytes={start}-{end}', 'Accept-Encoding': 'identity',
             'User-Agent': 'SITE-benchmark-verifier'})
@@ -52,7 +60,7 @@ class RemoteZip(io.RawIOBase):
             self.size = size
             data = response.read(end - start + 2)
             if len(data) != end - start + 1:
-                raise ValueError('Incomplete archive range')
+                raise EOFError('Incomplete archive range')
             return data
 
     def seekable(self):
