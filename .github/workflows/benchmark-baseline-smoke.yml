@@ -39,3 +39,5 @@ jobs:
           name: verified-owner-baseline
           path: verified-baseline/
           retention-days: 7
+
+# Bounded official-data download retry enabled.
