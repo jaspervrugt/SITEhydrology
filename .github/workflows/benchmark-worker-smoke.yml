@@ -48,4 +48,4 @@ jobs:
             worker-publication/
           retention-days: 7
 
-# Recheck actual end-of-run saved fits after offline retry integration.
+# Bounded official-data download retry enabled.
