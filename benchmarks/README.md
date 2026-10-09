@@ -4,10 +4,13 @@ The proposal workflow is an initial pilot, not automatic benchmark publication.
 Existing results stay unchanged. No experiment is approved yet: profiles.json
 has an intentionally empty allowlist.
 
-Local prototype status: MATLAB independently recomputed a real CAMELS-US/HBV
-fit and rejected an inflated score. Its hash-bound receipt successfully fed
-the immutable snapshot publisher, and MATLAB imported that snapshot back into
-SITE's result schema. Nine Python validation/publication tests pass.
+The independent worker now passes on GitHub-hosted Linux: it downloads
+checksum-pinned official CAMELS-US files, builds the frozen C++ core, checks
+all nine metrics against SITE's result-store output, and tests immutable
+publication in temporary storage. Local tests also reject an inflated score
+and import verified snapshots into SITE. Thirteen Python tests pass.
+The updated Windows application and installer build successfully. A separate
+compiled browser sign-in test is still being diagnosed.
 
 ## Authentication
 
@@ -57,7 +60,9 @@ uses the recomputed scores rather than the client's rounded values.
 
 Receipts must stay in the trusted worker's private output area. Never accept
 a receipt attached to a contribution. Client origin labels and isdeployed do
-not prove provenance. There is no automatic numerical worker online yet.
+not prove provenance. The read-only worker test is online. Production
+processing remains switched off by the administrator-controlled repository
+variable SITE_BENCHMARK_PUBLISH (it must explicitly equal true).
 
 Final publication must serialize updates, compare against the newest global
 version, preserve immutable checksum-addressed snapshots (including original
@@ -70,9 +75,21 @@ It has not been exercised against production GitHub storage.
 The compiled GUI now has a download/import callback and end-of-run submission
 callback. Both remain disabled by configuration. Source runs remain local.
 
-Still pending: a pinned matching numerical core on the GitHub worker,
-approved production profile metadata, remote delivery integration tests,
-browser sign-in tests in a compiled app, and Windows/macOS builds. The
-published SAGE source currently lacks the newer model-configuration helpers;
-do not silently use it as equivalent to the tested local core. MATLAB Compiler is installed and licensed locally; compiled integration testing is in progress.
+The matching public scientific core is frozen in core/scientific-core.zip,
+with an archive hash and individual dependency hashes. No private model,
+GUI, optimizer, dataset contents, or credentials are included. Data pins
+cover 531 basins; the downloader fetches only submitted basins from the
+fixed official archive using HTTP ranges and verifies each SHA-256 hash.
+
+The proposed HBV/NLDAS/Penman-Monteith daily profile is in
+proposed-profiles.json, disabled; production profiles.json is still empty.
+The publisher job fetches the newest snapshots, checks that approved profiles
+have not changed during verification, serializes publishers, and delivers
+immutable assets before changing the index. The benchmark release does not
+replace the latest software release designation.
+
+Still pending: approval/activation of the production profile, remote delivery
+integration, compiled browser sign-in and end-of-run GUI integration, and a
+macOS build. Existing result files and published application releases remain
+unchanged.
 
