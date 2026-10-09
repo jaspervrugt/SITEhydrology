@@ -44,5 +44,10 @@ for file in files:
         candidate = Path(tmp) / 'candidate.json'
         candidate.write_bytes(raw)
         report = validate(read_json(candidate), manifest)
+    # This directory belongs to the trusted job, never the contributor.
+    if os.environ.get('CANDIDATE_DIR'):
+        directory = Path(os.environ['CANDIDATE_DIR'])
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / (digest + '.json')).write_bytes(raw)
     print(json.dumps(report))
 print("Structural validation only. Independent score verification is still required.")
