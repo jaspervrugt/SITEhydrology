@@ -13,3 +13,7 @@ On Windows, consenting users can retain pending submissions and protected sign-i
 The owner baseline was independently recalculated from saved parameter vectors because older stored scores did not all reproduce. Original files are recoverable in Git history. The recalculation does not represent additional calibrations.
 
 Publication is controlled by the repository variable SITE_BENCHMARK_PUBLISH. GUI submission is controlled by utils/results/site_benchmark_github.json. Only enabled profiles in benchmarks/profiles.json may contribute.
+
+Live verification and automatic three-file publication passed in [run 37999228345](https://github.com/jaspervrugt/SITEhydrology/actions/runs/37999228345). The new Windows pilot build is ready for interactive GUI testing. Existing public application releases have not been replaced; macOS must be rebuilt separately.
+
+Changing the pinned numerical core requires reapproval and a verified baseline; old and new numerical definitions must not be compared as one benchmark.
