@@ -26,12 +26,15 @@ def deliver(root, expected_sha):
         raise RuntimeError("Cannot read the current benchmark index")
     if (current["sha"] if current else None) != expected_sha:
         raise RuntimeError("Benchmark index changed; fetch and merge the latest version again")
-    release = subprocess.run(["gh", "release", "view", TAG, "--repo", REPO],
-                             capture_output=True)
+    release = subprocess.run(["gh", "api", f"repos/{REPO}/releases/tags/{TAG}"],
+                             capture_output=True, text=True)
     if release.returncode:
+        if "HTTP 404" not in release.stderr:
+            raise RuntimeError("Cannot read the benchmark release")
         subprocess.run(["gh", "release", "create", TAG, "--repo", REPO,
                         "--title", "Shared SITE benchmarks", "--notes",
-                        "Verified default-setting benchmarks with immutable recovery snapshots."],
+                        "Verified default-setting benchmarks with immutable recovery snapshots.",
+                        "--latest=false"],
                        check=True)
     assets = json.loads(subprocess.check_output(
         ["gh", "api", f"repos/{REPO}/releases/tags/{TAG}"], text=True))["assets"]
