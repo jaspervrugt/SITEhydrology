@@ -47,3 +47,5 @@ jobs:
             worker-receipt.json
             worker-publication/
           retention-days: 7
+
+# Recheck actual end-of-run saved fits after offline retry integration.
