@@ -23,7 +23,7 @@ jobs:
       - uses: matlab-actions/setup-matlab@aa8bbc7b76daa63c5d456d1430cbd6cb5b626ab4
         with:
           release: R2026a
-      - name: Compile approved native core and independently verify scores
+      - name: Compile approved native core and independently verify all stored metrics
         uses: matlab-actions/run-command@37b454c384483087929a3d652be474ba585a9659
         with:
           command: >-
