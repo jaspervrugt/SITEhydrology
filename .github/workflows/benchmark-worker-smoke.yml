@@ -1,0 +1,49 @@
+name: Test independent benchmark worker
+on:
+  push:
+    branches: [site-shared-benchmark-pilot-20261008]
+    paths: [.github/workflows/benchmark-worker-smoke.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  numerical-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Validate fixed transport fixture
+        run: python3 benchmarks/validate_submission.py benchmarks/tests/hbv_candidate.json --profiles benchmarks/tests/profiles.json
+      - name: Unpack pinned public scientific core
+        run: python3 benchmarks/unpack_core.py benchmarks/core/scientific-core.zip --pin benchmarks/core/core-pin.json --destination worker-work
+      - name: Fetch checksum-pinned official data for one basin
+        run: python3 benchmarks/prepare_worker_data.py worker-data --pins benchmarks/core/worker-data-pin.json --candidate benchmarks/tests/hbv_candidate.json
+      - uses: matlab-actions/setup-matlab@aa8bbc7b76daa63c5d456d1430cbd6cb5b626ab4
+        with:
+          release: R2026a
+      - name: Compile approved native core and independently verify scores
+        uses: matlab-actions/run-command@37b454c384483087929a3d652be474ba585a9659
+        with:
+          command: >-
+            addpath(fullfile(pwd,'benchmarks','worker'));
+            core=fullfile(pwd,'worker-work','SAGEhydrology');
+            addpath(fullfile(core,'models'));
+            mex('-setup','C++'); compile_crr_model_mex;
+            pin=jsondecode(fileread(fullfile(pwd,'benchmarks','core','core-pin.json')));
+            revision=[getenv('GITHUB_SHA') ':' pin.sha256];
+            site_benchmark_worker(core,fullfile(pwd,'worker-data'),
+            fullfile(pwd,'benchmarks','tests','hbv_candidate.json'),
+            fullfile(pwd,'benchmarks','tests','profiles.json'),
+            fullfile(pwd,'benchmarks','worker','worker-config.json'),
+            fullfile(pwd,'worker-receipt.json'),revision);
+      - name: Test local immutable publication without GitHub writes
+        run: python3 benchmarks/test_worker_publication.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: verified-worker-smoke
+          path: |
+            worker-receipt.json
+            worker-publication/
+          retention-days: 7
