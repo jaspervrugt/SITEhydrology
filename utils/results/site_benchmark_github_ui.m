@@ -1,4 +1,5 @@
-function result=site_benchmark_github_ui(fig,pendingFile,logFcn)
+function result=site_benchmark_github_ui(fig,pendingFile,logFcn,automatic)
+if nargin<4,automatic=false;end
 %SITE_BENCHMARK_GITHUB_UI Submit a proposed update, never write benchmarks.
 % Only deployed GUI calls are eligible. The origin label is informational;
 % trusted publication MUST recompute scores and validate approved profiles.
@@ -12,13 +13,19 @@ if ~cfg.enabled || isempty(cfg.clientId)
 end
 assert(strcmp(cfg.owner,'jaspervrugt') && strcmp(cfg.repository,'SITEhydrology'), ...
     'SITE:BenchmarkRepository','Unexpected benchmark repository.');
-reply=uiconfirm(fig,[ ...
-    'Submit completed default-setting fits for verification on GitHub? ' ...
-    'Only parameters, scores, and experiment settings will be shared. ' ...
-    'Your local files remain available.'], ...
-    'Contribute SITE benchmarks','Options',{'Submit','Keep local'}, ...
-    'DefaultOption',1,'CancelOption',2);
-if ~strcmp(reply,'Submit'),return,end
+if automatic
+    if ~isappdata(fig,'SITEBenchmarkRetryApproved'),return,end
+    token=site_benchmark_login_ui(fig,cfg.clientId,true);
+    if isempty(token),return,end
+else
+    reply=uiconfirm(fig,[ ...
+        'Submit default-setting fits for verification on GitHub? ' ...
+        'If the connection fails, SITE will retry while this window stays open.'], ...
+        'Contribute SITE benchmarks','Options',{'Submit','Keep local'}, ...
+        'DefaultOption',1,'CancelOption',2);
+    if ~strcmp(reply,'Submit'),return,end
+    setappdata(fig,'SITEBenchmarkRetryApproved',true);
+end
 try
     loaded=load(pendingFile,'submission');
     payload=site_benchmark_payload(loaded.submission);
@@ -49,7 +56,7 @@ try
     end
     body=jsonencode(payload); bytes=unicode2native(body,'UTF-8');
     assert(numel(bytes)<=20*1024*1024,'SITE:BenchmarkSize','Submission is too large.');
-    token=site_benchmark_login_ui(fig,cfg.clientId);
+    if ~automatic,token=site_benchmark_login_ui(fig,cfg.clientId);end
     if isempty(token),return,end
     account=api('get','https://api.github.com/user',token,[],false);
     login=account.login;
