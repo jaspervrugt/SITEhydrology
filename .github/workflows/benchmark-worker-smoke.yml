@@ -40,7 +40,8 @@ jobs:
             fullfile(pwd,'worker-receipt.json'),revision);
       - name: Test local immutable publication without GitHub writes
         run: python3 benchmarks/test_worker_publication.py
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: verified-worker-smoke
           path: |
@@ -48,4 +49,3 @@ jobs:
             worker-publication/
           retention-days: 7
 
-# Bounded official-data download retry enabled.
