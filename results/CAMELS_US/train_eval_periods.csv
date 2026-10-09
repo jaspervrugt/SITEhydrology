@@ -1,2 +1,0 @@
-period_id,signature,train_start,train_end,eval_start,eval_end,method,spinup_days
-1,"{""dt"":""daily"",""method"":""manual"",""spinup"":365,""dts"":[1,10,1999],""dte"":[30,9,2008],""des"":[1,10,1989],""dee"":[30,9,1999]}",10/1/1999,9/30/2008,10/1/1989,9/30/1999,manual,365
