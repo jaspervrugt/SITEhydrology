@@ -74,5 +74,5 @@ Still pending: a pinned matching numerical core on the GitHub worker,
 approved production profile metadata, remote delivery integration tests,
 browser sign-in tests in a compiled app, and Windows/macOS builds. The
 published SAGE source currently lacks the newer model-configuration helpers;
-do not silently use it as equivalent to the tested local core. MATLAB Compiler
-was unavailable to the local batch process when checked on 2026-10-08.
+do not silently use it as equivalent to the tested local core. MATLAB Compiler is installed and licensed locally; compiled integration testing is in progress.
+
