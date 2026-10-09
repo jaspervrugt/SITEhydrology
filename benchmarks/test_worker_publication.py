@@ -11,7 +11,9 @@ args = (root / 'benchmarks/tests/hbv_candidate.json',
         root / 'benchmarks/tests/profiles.json', root / 'worker-receipt.json',
         root / 'worker-publication', revision)
 report = publish(*args)
-assert report['published'] and report['improvements'] == 1
+payload = json.loads(args[0].read_text())
+records = payload['records']
+assert report['published'] and report['improvements'] == len(records)
 again = publish(*args)
 assert not again['published'] and again['improvements'] == 0
 print('Remote numerical verification and immutable publication passed.')
