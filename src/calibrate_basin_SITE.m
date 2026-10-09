@@ -19,6 +19,7 @@ function result = calibrate_basin_SITE(mdl,dat,ode,loss,alg,misc,Phi)
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+    calibrationClock = tic;
     d = numel(mdl.th_min);
     if nargin < 7 ...
             || isempty(Phi)
@@ -47,8 +48,9 @@ function result = calibrate_basin_SITE(mdl,dat,ode,loss,alg,misc,Phi)
     
     bestF = inf;
     bestX = nan(d,1);
+    bestTrial = NaN;
     trials = repmat(struct('f',NaN,'x',nan(d,1), ...
-        'runtime',NaN,'iterations',NaN,'exitflag',NaN),alg.n,1);
+        'runtime',NaN,'iterations',NaN,'exitflag',NaN,'metrics',[]),alg.n,1);
     
     for trial = 1:alg.n
         timer = tic;
@@ -90,6 +92,7 @@ function result = calibrate_basin_SITE(mdl,dat,ode,loss,alg,misc,Phi)
         if trialF < bestF
             bestF = trialF;
             bestX = trialX;
+            bestTrial = trial;
         end
     end
     
@@ -98,22 +101,43 @@ function result = calibrate_basin_SITE(mdl,dat,ode,loss,alg,misc,Phi)
             'Every optimizer trial returned a nonfinite objective.');
     end
     
-    % Use a JKGE request for diagnostics so one additional model run returns
+    % Evaluate each finite trial optimum; each diagnostic model run returns
     % JKGE together with all six standard metrics and the FDC divergence.
     diagnosticLoss = loss;
     diagnosticLoss.fnc = 7;
     metricRequest = crr_request(struct('metrics',true));
-    [~,metricOut] = local_run_crr(bestX,mdl,dat,ode, ...
-        diagnosticLoss,misc.crr_backend,metricRequest);
+    for trial = 1:alg.n
+        if ~isfinite(trials(trial).f) || any(~isfinite(trials(trial).x))
+            continue
+        end
+        [~,metricOut] = local_run_crr(trials(trial).x,mdl,dat,ode, ...
+            diagnosticLoss,misc.crr_backend,metricRequest);
+        trials(trial).metrics = metricOut.metrics;
+    end
     
     result = struct();
     result.x = bestX;
     result.theta = mdl.th_min(:) + bestX .* ...
         (mdl.th_max(:)-mdl.th_min(:));
     result.objective = bestF;
-    result.metrics = metricOut.metrics;
+    result.metrics = trials(bestTrial).metrics;
     result.runtime = sum([trials.runtime],'omitnan');
+    result.calibrationRuntime = toc(calibrationClock);
     result.trials = trials;
+    result.trialResults = struct([]);
+    for trial = 1:alg.n
+        if isempty(trials(trial).metrics),continue,end
+        candidate = struct('x',trials(trial).x, ...
+            'theta',mdl.th_min(:)+trials(trial).x.*(mdl.th_max(:)-mdl.th_min(:)), ...
+            'objective',trials(trial).f,'metrics',trials(trial).metrics, ...
+            'runtime',result.runtime);
+        % Stored runtimes retain the total optimizer budget for this basin.
+        if isempty(result.trialResults)
+            result.trialResults = candidate;
+        else
+            result.trialResults(end+1) = candidate; %#ok<AGROW>
+        end
+    end
 end
 
 function Phi = local_latin_hypercube(d,n)

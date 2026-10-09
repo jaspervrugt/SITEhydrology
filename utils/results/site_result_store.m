@@ -29,7 +29,7 @@ switch lower(action)
 end
 end
 
-function paths = local_paths(resultDir,modelName,dtTag,region,meteo,prd)
+function paths = local_paths(resultDir,modelName,dtTag,region,meteo,prd,mdl)
 % Resolve the same provenance-specific filenames used by local_load.
 provenance = local_provenance(region,meteo);
 paths.profileTag = provenance.tag;
@@ -40,6 +40,10 @@ scopeDir = local_result_scope(resultDir,region,dtTag);
 [paths.periodID,paths.period] = site_period_registry( ...
     scopeDir,dtTag,prd,false);
 suffix = sprintf('%s_p%03d',provenance.tag,paths.periodID);
+if nargin>=7 && ~isempty(mdl)
+    configuration=model_run_configuration(mdl);
+    suffix=[suffix configuration.suffix];
+end
 paths.periodDir = fullfile(scopeDir, ...
     sprintf('period_%03d',paths.periodID));
 paths.resultDir = fullfile(paths.periodDir,provenance.tag);
@@ -112,7 +116,8 @@ store.fdcD0pt = fdcD0pt;
 store.fdcD0pe = fdcD0pe;
 store.fdcD0logpt = fdcD0logpt;
 store.fdcD0logpe = fdcD0logpe;
-paths = local_paths(resultDir,modelName,dtTag,region,meteo,prd);
+store.configuration=model_run_configuration(mdl);
+paths = local_paths(resultDir,modelName,dtTag,region,meteo,prd,mdl);
 if ~isfolder(paths.resultDir), mkdir(paths.resultDir); end
 store.resultDir = paths.resultDir;
 store.fileMat = paths.fileMat;
@@ -142,11 +147,16 @@ if isfile(store.fileMat)
             || ~isequaln(previous.store.provenance,store.provenance) ...
             || (isfield(previous.store,'periodID') ...
             && previous.store.periodID ~= store.periodID) ...
-            || ~isequal(previous.store.ids,store.ids);
+            || ~local_same_basin_set(previous.store.ids,store.ids);
     if baseMismatch
         error('SITE:CheckpointMismatch', ...
             ['Checkpoint does not match forcing, PET, basin IDs, ' ...
             'or period: %s'],store.fileMat);
+    end
+    if isfield(previous.store,'configuration') && ...
+            ~strcmp(previous.store.configuration.identity,store.configuration.identity)
+        error('SITE:ConfigurationMismatch', ...
+            'Stored model settings do not match this run: %s',store.fileMat);
     end
     revisionMismatch = isfield(store,'resultVersion') ...
         && (~isfield(previous.store,'resultVersion') ...
@@ -159,6 +169,7 @@ if isfile(store.fileMat)
             'model definition; obsolete parameters and scores were ' ...
             'cleared.\n']);
     else
+        previous.store = local_align_basin_rows(previous.store,store.ids);
         store = local_merge_previous(store,previous.store);
     end
 elseif isfile(store.fileBook)
@@ -464,9 +475,25 @@ else
 end
 end
 
-function store = local_update(store,k,result,lossName,optimizer,lossCfg)
+function store = local_update(store,k,result,lossName,optimizer,lossCfg,countRun)
 if nargin < 6 || isempty(lossCfg)
     lossCfg = struct('M',2,'method',1,'n_win',31);
+end
+if nargin < 7,countRun=true;end
+if isfield(result,'trialResults') && ~isempty(result.trialResults)
+    incumbent=store.train(k,:);
+    counts=store.improvementCount(k,:);
+    winner=rmfield(result,'trialResults');
+    store=local_update(store,k,winner,lossName,optimizer,lossCfg,countRun);
+    for trial=1:numel(result.trialResults)
+        store=local_update(store,k,result.trialResults(trial),lossName,optimizer,lossCfg,false);
+    end
+    % Count benchmark replacements once per completed basin calibration,
+    % irrespective of the number/order of intermediate trial improvements.
+    changed=isfinite(store.train(k,:)) & ...
+        (~isfinite(incumbent) | store.train(k,:)~=incumbent);
+    store.improvementCount(k,:)=counts+double(changed & isfinite(incumbent));
+    return
 end
 jkgeUsesDefault = local_default_jkge(lossCfg);
 m = result.metrics;
@@ -492,7 +519,7 @@ elseif isempty(runIndex)
         'Cannot count completed run for loss function %s.', ...
         char(string(lossName)));
 end
-if ~isempty(runIndex)
+if countRun && ~isempty(runIndex)
     store.runCount(k,runIndex) = store.runCount(k,runIndex) + 1;
 end
 
@@ -532,6 +559,29 @@ for j = 1:numel(store.metricNames)
 end
 end
 
+function tf = local_same_basin_set(oldIDs,newIDs)
+oldIDs=string(oldIDs(:));newIDs=string(newIDs(:));
+tf=numel(oldIDs)==numel(newIDs) && numel(unique(oldIDs))==numel(oldIDs) ...
+    && numel(unique(newIDs))==numel(newIDs) && all(ismember(newIDs,oldIDs));
+end
+
+function old = local_align_basin_rows(old,newIDs)
+% Scores and parameters follow gauge IDs, never historical row positions.
+[matched,order]=ismember(string(newIDs(:)),string(old.ids(:)));
+assert(all(matched),'SITE:CheckpointMismatch','Stored basin IDs differ.');
+fields={'train','eval','optimizedLoss','optimizer','runtime','updated', ...
+    'rangeID','nTheta','theta','runCount','improvementCount'};
+for k=1:numel(fields)
+    name=fields{k};
+    if isfield(old,name)
+        value=old.(name);
+        assert(size(value,1)==numel(old.ids),'SITE:CheckpointMismatch', ...
+            'Stored %s has inconsistent basin rows.',name);
+        old.(name)=value(order,:,:);
+    end
+end
+old.ids=string(newIDs(:));
+end
 function store = local_merge_previous(store,old)
 % Preserve all matching metric columns from checkpoints with older schemas.
 if isfield(old,'metricNames') && ~isempty(old.metricNames)
@@ -707,8 +757,13 @@ for j = 1:numel(store.metricNames)
 end
 writetable(S,tempSummaryFile,'Sheet',store.model, ...
     'WriteMode','overwritesheet');
-writecell(local_run_information(store,'Multiple SITE models'), ...
+writecell(local_run_information(store,store.model), ...
     tempSummaryFile,'Sheet','Run information','WriteMode','overwritesheet');
+% Keep configuration provenance for each model in a shared master workbook.
+settingsSheet=[store.model '_settings'];
+settingsSheet=settingsSheet(1:min(31,numel(settingsSheet)));
+writecell(local_run_information(store,store.model), ...
+    tempSummaryFile,'Sheet',settingsSheet,'WriteMode','overwritesheet');
 local_replace_file(tempSummaryFile,summaryFile);
 clear summaryCleanup
 end
@@ -767,5 +822,10 @@ if isfinite(p.precip)
 end
 if isfinite(p.temp)
     information(end+1,:) = {'Temperature selection',p.temp};
+end
+if isfield(store,'configuration')
+    information(end+1,:)={'Configuration suffix',store.configuration.suffix};
+    information(:,3:7)={''};
+    information=[information;store.configuration.rows];
 end
 end

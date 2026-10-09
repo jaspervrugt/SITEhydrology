@@ -1,0 +1,104 @@
+name: Verify and publish benchmark contributions
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    paths: ['benchmarks/inbox/*.json']
+permissions:
+  contents: read
+jobs:
+  verify:
+    # Administrator-controlled switch stays off throughout the pilot.
+    if: vars.SITE_BENCHMARK_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      # Never check out, import or run contributor source or workflows.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - name: Validate and fetch numerical JSON only
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CANDIDATE_DIR: verified-candidates
+        run: python3 benchmarks/check_pull_request.py
+      - name: Unpack administrator-pinned scientific core
+        run: python3 benchmarks/unpack_core.py benchmarks/core/scientific-core.zip --pin benchmarks/core/core-pin.json --destination worker-work
+      - name: Fetch checksum-pinned official data
+        run: |
+          for candidate in verified-candidates/*.json; do
+            python3 benchmarks/prepare_worker_data.py worker-data --pins benchmarks/core/worker-data-pin.json --candidate "$candidate"
+          done
+      - uses: matlab-actions/setup-matlab@aa8bbc7b76daa63c5d456d1430cbd6cb5b626ab4
+        with:
+          release: R2026a
+      - name: Independently verify all submitted scores
+        uses: matlab-actions/run-command@37b454c384483087929a3d652be474ba585a9659
+        env:
+          TRUSTED_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        with:
+          command: >-
+            addpath(fullfile(pwd,'benchmarks','worker'));
+            core=fullfile(pwd,'worker-work','SAGEhydrology');
+            addpath(fullfile(core,'models'));
+            mex('-setup','C++'); compile_crr_model_mex;
+            pin=jsondecode(fileread(fullfile(pwd,'benchmarks','core','core-pin.json')));
+            revision=[getenv('TRUSTED_BASE_SHA') ':' pin.sha256];
+            site_benchmark_worker_batch(core,fullfile(pwd,'worker-data'),
+            fullfile(pwd,'verified-candidates'),fullfile(pwd,'benchmarks','profiles.json'),
+            fullfile(pwd,'benchmarks','worker','worker-config.json'),
+            fullfile(pwd,'verified-receipts'),revision);
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: independently-verified-benchmarks
+          path: |
+            verified-candidates/
+            verified-receipts/
+          retention-days: 7
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: site-shared-benchmark-publisher
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      # Only the sibling trusted verifier job can supply this artifact.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: independently-verified-benchmarks
+          path: .
+      - name: Prepare improvements against the newest shared results
+        id: prepare
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRUSTED_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 benchmarks/publish_worker_batch.py --phase prepare
+      - name: Unpack pinned export dependencies
+        if: steps.prepare.outputs.changed == 'true'
+        run: python3 benchmarks/unpack_core.py benchmarks/core/scientific-core.zip --pin benchmarks/core/core-pin.json --destination worker-work
+      - uses: matlab-actions/setup-matlab@aa8bbc7b76daa63c5d456d1430cbd6cb5b626ab4
+        if: steps.prepare.outputs.changed == 'true'
+        with:
+          release: R2026a
+      - name: Export existing MAT and Excel result files
+        if: steps.prepare.outputs.changed == 'true'
+        uses: matlab-actions/run-command@37b454c384483087929a3d652be474ba585a9659
+        with:
+          command: >-
+            addpath(fullfile(pwd,'benchmarks','worker'),fullfile(pwd,'utils','results'));
+            site_benchmark_export_batch(fullfile(pwd,'publication'),
+            fullfile(pwd,'worker-work','SAGEhydrology'),
+            fullfile(pwd,'benchmarks','worker','worker-config.json'));
+      - name: Commit result files and index together
+        if: steps.prepare.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 benchmarks/publish_worker_batch.py --phase finish
