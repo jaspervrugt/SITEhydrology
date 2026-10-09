@@ -57,7 +57,6 @@ for b=1:numel(basins)
         if ~sameScore(training,r.train) || ~sameScore(evaluation,r.evaluation)
             report.mismatches(end+1)=id+"/"+string(r.metric);
             fprintf('Mismatch %s/%s: training claimed %.17g computed %.17g; evaluation claimed %.17g computed %.17g\n',char(id),r.metric,r.train,training,r.evaluation,evaluation);
-            fprintf("Mismatch %s/%s: training claimed %.17g computed %.17g; evaluation claimed %.17g computed %.17g\n",char(id),r.metric,r.train,training,r.evaluation,evaluation);
         end
     end
     fprintf('Checked basin %d/%d: %s\n',b,numel(basins),char(id));
@@ -91,4 +90,5 @@ end
 function s=skill(d,ref)
 if ~isfinite(ref) || ref<=0,s=NaN;else,s=1-d/ref;end
 end
+
 

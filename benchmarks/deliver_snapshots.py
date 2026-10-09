@@ -17,7 +17,7 @@ TAG = "site-benchmarks"
 
 def draft_release():
     pages = json.loads(subprocess.check_output(
-        ["gh", "api", "--paginate", "--slurp", f"repos/{REPO}/releases?per_page=100"], text=True))
+        ["gh", "api", "--paginate", "--slurp", f"repos/{REPO}/releases?per_page=100"], text=True, encoding="utf-8"))
     matches = [r for page in pages for r in page if r["tag_name"] == TAG]
     if len(matches) > 1:
         raise RuntimeError("Duplicate benchmark test releases")
@@ -26,12 +26,12 @@ def draft_release():
     return matches[0] if matches else None
 
 
-def deliver(root, expected_sha, *, branch='main', index_path='benchmarks/index.json', draft=False):
+def deliver(root, expected_sha, *, branch='main', index_path='benchmarks/index.json', draft=False, mirror_plan=None):
     root = Path(root)
     index = json.loads((root / "index.json").read_text())
     # Fail before any mutation if the latest index has changed in the meantime.
     response = subprocess.run(["gh", "api", f"repos/{REPO}/contents/{index_path}?ref={branch}"],
-                              capture_output=True, text=True)
+                              capture_output=True, text=True, encoding="utf-8")
     current = json.loads(response.stdout) if response.returncode == 0 else None
     if response.returncode and "HTTP 404" not in response.stderr:
         raise RuntimeError("Cannot read the current benchmark index")
@@ -39,7 +39,7 @@ def deliver(root, expected_sha, *, branch='main', index_path='benchmarks/index.j
         raise RuntimeError("Benchmark index changed; fetch and merge the latest version again")
     existing_draft = draft_release() if draft else None
     release = subprocess.run(["gh", "api", f"repos/{REPO}/releases/tags/{TAG}"],
-                             capture_output=True, text=True)
+                             capture_output=True, text=True, encoding="utf-8")
     if release.returncode and existing_draft is None:
         if "HTTP 404" not in release.stderr:
             raise RuntimeError("Cannot read the benchmark release")
@@ -51,7 +51,7 @@ def deliver(root, expected_sha, *, branch='main', index_path='benchmarks/index.j
             command.append('--draft')
         subprocess.run(command, check=True)
     release_data = draft_release() if draft else json.loads(subprocess.check_output(
-        ["gh", "api", f"repos/{REPO}/releases/tags/{TAG}"], text=True))
+        ["gh", "api", f"repos/{REPO}/releases/tags/{TAG}"], text=True, encoding="utf-8"))
     assets = release_data["assets"]
     known = {a["name"]: a for a in assets}
     for profile, entry in index["profiles"].items():
@@ -77,6 +77,10 @@ def deliver(root, expected_sha, *, branch='main', index_path='benchmarks/index.j
             if digest != "sha256:" + entry["sha256"]:
                 raise ValueError("Existing immutable asset digest differs")
         entry["downloadUrl"] = f"https://github.com/{REPO}/releases/download/{TAG}/{name}"
+    if mirror_plan is not None:
+        from deliver_result_files import deliver_atomic_results
+        deliver_atomic_results(root,index,mirror_plan,branch,index_path,expected_sha)
+        return
     body = {"message": "Publish verified SITE benchmark index",
             "branch": branch, "content": base64.b64encode(
                 json.dumps(index, sort_keys=True, separators=(",", ":")).encode()).decode()}

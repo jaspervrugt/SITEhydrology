@@ -75,8 +75,30 @@ jobs:
         with:
           name: independently-verified-benchmarks
           path: .
-      - name: Compare latest results and publish immutable improvements
+      - name: Prepare improvements against the newest shared results
+        id: prepare
         env:
           GH_TOKEN: ${{ github.token }}
           TRUSTED_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: python3 benchmarks/publish_worker_batch.py
+        run: python3 benchmarks/publish_worker_batch.py --phase prepare
+      - name: Unpack pinned export dependencies
+        if: steps.prepare.outputs.changed == 'true'
+        run: python3 benchmarks/unpack_core.py benchmarks/core/scientific-core.zip --pin benchmarks/core/core-pin.json --destination worker-work
+      - uses: matlab-actions/setup-matlab@aa8bbc7b76daa63c5d456d1430cbd6cb5b626ab4
+        if: steps.prepare.outputs.changed == 'true'
+        with:
+          release: R2026a
+      - name: Export existing MAT and Excel result files
+        if: steps.prepare.outputs.changed == 'true'
+        uses: matlab-actions/run-command@37b454c384483087929a3d652be474ba585a9659
+        with:
+          command: >-
+            addpath(fullfile(pwd,'benchmarks','worker'),fullfile(pwd,'utils','results'));
+            site_benchmark_export_batch(fullfile(pwd,'publication'),
+            fullfile(pwd,'worker-work','SAGEhydrology'),
+            fullfile(pwd,'benchmarks','worker','worker-config.json'));
+      - name: Commit result files and index together
+        if: steps.prepare.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 benchmarks/publish_worker_batch.py --phase finish

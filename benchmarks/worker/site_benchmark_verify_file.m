@@ -17,7 +17,8 @@ for i=1:numel(manifest.profiles)
     if p.enabled && strcmp(p.id,payload.profile),profile=p;break,end
 end
 assert(~isempty(profile),'SITE:VerificationProfile','Profile is not approved.');
-receipt=site_benchmark_verify(payload,@(id)site_benchmark_context(C,id),profile);
+loader=site_benchmark_context_batch(C,unique(string({payload.records.basin})));
+receipt=site_benchmark_verify(payload,loader,profile);
 receipt.candidate_sha256=digest(bytes);
 receipt.manifest_sha256=digest(manifestBytes);
 receipt.verifier_revision=C.verifierRevision;
@@ -36,3 +37,4 @@ function hash=digest(bytes)
 md=java.security.MessageDigest.getInstance('SHA-256');
 hash=lower(reshape(dec2hex(typecast(md.digest(bytes),'uint8'),2).',1,[]));
 end
+

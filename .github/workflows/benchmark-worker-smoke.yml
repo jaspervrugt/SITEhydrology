@@ -49,3 +49,5 @@ jobs:
             worker-publication/
           retention-days: 7
 
+
+# Verify recalculated owner baseline with batch context and atomic publisher.
