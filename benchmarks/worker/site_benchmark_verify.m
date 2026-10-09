@@ -23,6 +23,7 @@ for b=1:numel(basins)
         && strcmp(ctx.configuration.identity,profile.contract.configuration), ...
         'SITE:VerificationContext','Worker model configuration differs from approved profile.');
     rows=find(string({records.basin})==id);
+    evaluated=containers.Map('KeyType','char','ValueType','any');
     for k=rows
         r=records(k);
         theta=double(r.theta(:));
@@ -34,13 +35,19 @@ for b=1:numel(basins)
         assert(numel(r.normalized)==numel(x) && ...
             all(abs(x-double(r.normalized(:)))<1e-9), ...
             'SITE:VerificationParameters','Normalized/physical parameters differ.');
-        request=crr_request(struct('metrics',true));
-        if strcmp(ctx.backend,'cpp')
-            [~,out]=crr_model_cpp(x,ctx.mdl,ctx.dat,ctx.ode,ctx.loss,request);
+        key=sprintf('%.17g,',theta);
+        if isKey(evaluated,key)
+            metrics=evaluated(key);
         else
-            [~,out]=crr_model(x,ctx.mdl,ctx.dat,ctx.ode,ctx.loss,request);
+            request=crr_request(struct('metrics',true));
+            if strcmp(ctx.backend,'cpp')
+                [~,out]=crr_model_cpp(x,ctx.mdl,ctx.dat,ctx.ode,ctx.loss,request);
+            else
+                [~,out]=crr_model(x,ctx.mdl,ctx.dat,ctx.ode,ctx.loss,request);
+            end
+            metrics=out.metrics;evaluated(key)=metrics;
         end
-        [training,evaluation]=metric(out.metrics,ctx.loss,r.metric);
+        [training,evaluation]=metric(metrics,ctx.loss,r.metric);
         % Publication uses these independently computed values, never the
         % client's rounded claim, even when it falls within the tolerance.
         report.verified_records(k).train=training;
@@ -51,6 +58,7 @@ for b=1:numel(basins)
             report.mismatches(end+1)=id+"/"+string(r.metric);
         end
     end
+    fprintf('Checked basin %d/%d: %s\n',b,numel(basins),char(id));
 end
 report.scores_verified=isempty(report.mismatches) && report.checked>0;
 end
