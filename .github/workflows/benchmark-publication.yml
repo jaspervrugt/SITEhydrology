@@ -26,6 +26,13 @@ jobs:
         run: python3 benchmarks/check_pull_request.py
       - name: Unpack administrator-pinned scientific core
         run: python3 benchmarks/unpack_core.py benchmarks/core/scientific-core.zip --pin benchmarks/core/core-pin.json --destination worker-work
+      - name: Reuse checksum-validated official input files
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: worker-data
+          key: site-verified-data-${{ hashFiles('benchmarks/core/worker-data-pin.json') }}-${{ github.run_id }}
+          restore-keys: site-verified-data-${{ hashFiles('benchmarks/core/worker-data-pin.json') }}-
+      # prepare_worker_data verifies every reused file against its pin.
       - name: Fetch checksum-pinned official data
         run: |
           for candidate in verified-candidates/*.json; do
