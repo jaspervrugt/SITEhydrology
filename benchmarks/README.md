@@ -10,7 +10,10 @@ all nine metrics against SITE's result-store output, and tests immutable
 publication in temporary storage. Local tests also reject an inflated score
 and import verified snapshots into SITE. Thirteen Python tests pass.
 The updated Windows application and installer build successfully. A separate
-compiled browser sign-in test is still being diagnosed.
+compiled browser sign-in test passed with the registered GitHub app. An
+isolated delivery test also passed using an unpublished draft release and a
+draft-branch index: asset checksum, recovery copy, repeat upload, and stale-index
+rejection were checked. End-of-run integration and macOS builds remain pending.
 
 ## Authentication
 
