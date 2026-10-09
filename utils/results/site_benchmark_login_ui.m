@@ -1,4 +1,5 @@
-function token=site_benchmark_login_ui(fig,clientId)
+function token=site_benchmark_login_ui(fig,clientId,cachedOnly)
+if nargin<3,cachedOnly=false;end
 assert(isdeployed && isscalar(fig) && isgraphics(fig,'figure'), ...
     'SITE:BenchmarkGUIRequired','Sign-in requires the compiled SITE GUI.');
 % Memory-only access token. No shared credentials, client secret or disk cache.
@@ -12,6 +13,7 @@ if ~isempty(sessionToken)
         sessionToken='';
     end
 end
+if cachedOnly,return,end
 options=weboptions('MediaType','application/x-www-form-urlencoded', ...
     'HeaderFields',{'Accept','application/json'},'Timeout',30);
 device=webwrite('https://github.com/login/device/code', ...
