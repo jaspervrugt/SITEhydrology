@@ -9,11 +9,25 @@ import io
 import json
 import re
 import urllib.request
+import urllib.error
+import time
 import zipfile
 from pathlib import Path
 
 BASE = 'https://zenodo.org/records/15529996/files/'
 ZIP_URL = BASE + 'basin_timeseries_v1p2_metForcing_obsFlow.zip?download=1'
+
+
+def open_retry(request):
+    for attempt in range(4):
+        try:
+            return urllib.request.urlopen(request,timeout=90)
+        except urllib.error.HTTPError as error:
+            if error.code not in {429,500,502,503,504} or attempt==3:
+                raise
+        except (urllib.error.URLError,TimeoutError):
+            if attempt==3:raise
+        time.sleep(2**(attempt+1))
 
 
 class RemoteZip(io.RawIOBase):
@@ -27,7 +41,7 @@ class RemoteZip(io.RawIOBase):
         request = urllib.request.Request(ZIP_URL, headers={
             'Range': f'bytes={start}-{end}', 'Accept-Encoding': 'identity',
             'User-Agent': 'SITE-benchmark-verifier'})
-        with urllib.request.urlopen(request, timeout=90) as response:
+        with open_retry(request) as response:
             expected = re.fullmatch(r'bytes (\d+)-(\d+)/(\d+)',
                                     response.headers.get('Content-Range', ''))
             if response.status != 206 or expected is None:
@@ -113,7 +127,7 @@ def prepare(root, pin_file, basin_ids):
             else:
                 if '/' in name or not re.fullmatch(r'camels_[a-z]+\.txt', name):
                     raise ValueError('Unexpected metadata filename')
-                with urllib.request.urlopen(BASE + name + '?download=1', timeout=90) as response:
+                with open_retry(BASE + name + '?download=1') as response:
                     data = response.read(2 * 1024 * 1024)
             if hashlib.sha256(data).hexdigest() != digest:
                 raise ValueError(f'Official data differs from approved checksum: {name}')
