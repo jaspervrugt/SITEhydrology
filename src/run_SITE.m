@@ -23,6 +23,8 @@ function output = run_SITE(C)
     % Optional SITE_ui callbacks. Command-line use remains unchanged when
     % C.ui is absent.
     ui = local_get(C,'ui',struct());
+    activeCleanup = onCleanup(@()local_ui_call(ui,'activeBasinsFcn',strings(0,1))); %#ok<NASGU>
+    local_ui_call(ui,'activeBasinsFcn',strings(0,1));
     setupClock = tic;
     required = {'root','region','dirD','dirM','dirQ','file_univ', ...
         'model','prd','meteo','loss','alg'};
@@ -65,6 +67,7 @@ function output = run_SITE(C)
     else
         mdl.model = C.model;
     end
+    if isfield(C,'user_model_folder'),mdl.user_model_folder=C.user_model_folder;end
     mdl.mcode = local_get(C,'mcode',4);
     mdl.calc = 'seq';
     mdl.names = ["hymod","hmodel","sacsma", ...
@@ -93,6 +96,8 @@ function output = run_SITE(C)
     else
         [mdl,d] = read_model(mdl,C.prd);
     end
+    if isfield(C,'modelConfig'),mdl.config=C.modelConfig;end
+    mdl=apply_model_configuration(mdl,ode);
     if isfield(C,'parOverride') ...
             && ~isempty(C.parOverride)
         mdl = apply_parameter_override( ...
@@ -154,7 +159,7 @@ function output = run_SITE(C)
         end
     end
     
-    bas = struct('sample','file');
+    bas = struct('sample','file','sort_by_gauge',true);
     bas.K = local_count_ids(C.file_univ);
     bas.K_t = bas.K;
     bas.K_e = 0;
@@ -178,6 +183,12 @@ function output = run_SITE(C)
         wanted = (1:bas.K).';
     end
     
+    % C.basinNumbers refers to positions in the original universe file.
+    % Translate them to the sorted list so existing scripts retain gauges.
+    if isfield(C,'basinNumbers') && ~isempty(C.basinNumbers)
+        [~,wanted] = ismember(wanted,bas.gauge_sort_order);
+        wanted = sort(wanted(:));
+    end
     local_ui_log(ui,'(04) build train/eval time split ...');
     [split,mdl] = build_split(mdl,C.prd,bas);
     meteoRead = C.meteo;
@@ -296,12 +307,18 @@ function output = run_SITE(C)
         diagnosticLoss.fdc.Q.D0e,diagnosticLoss.fdc.Q.D0pt, ...
         diagnosticLoss.fdc.Q.D0pe,diagnosticLoss.fdc.Q.D0logpt, ...
         diagnosticLoss.fdc.Q.D0logpe,C.region,C.meteo,C.prd);
+    % The compiled GUI can seed local defaults from verified shared results.
+    % Source/script runs have no callback and retain their existing behavior.
+    if isstruct(ui) && isfield(ui,'sharedBenchmarkFcn') ...
+            && isa(ui.sharedBenchmarkFcn,'function_handle')
+        store=ui.sharedBenchmarkFcn(store);
+    end
     local_ui_log(ui,sprintf( ...
         '    SITE checkpoint: %d/%d basins already have scores | %s', ...
         nnz(any(isfinite(store.train),2)),numel(store.ids), ...
         store.fileMat));
     local_ui_call(ui,'storeFcn',store,bas);
-    local_ui_timing(ui,'init',max(0,toc(setupClock)-dataSeconds));
+
     
     lossNames = {'SAR','RSS','NSE','KGE','Huber','FDC','JKGE'};
     if loss.fnc == 6
@@ -310,12 +327,14 @@ function output = run_SITE(C)
     end
     saveEvery = local_get(C,'saveEvery',1);
     useParallel = local_get(C,'parallel',false);
-    trainClock = tic;
+    trainingSeconds = 0;
+    local_ui_timing(ui,'train',trainingSeconds);
     if useParallel
         [store,pool] = local_run_parallel(C,wanted,bas,ids,dat, ...
-            mdl,ode,loss,misc,store,lossNames,saveEvery,trainClock);
+            mdl,ode,loss,misc,store,lossNames,saveEvery,setupClock);
     else
         pool = [];
+        local_ui_timing(ui,'init',toc(setupClock));
         for ii = 1:numel(wanted)
             if local_ui_should_stop(ui)
                 local_ui_log(ui,'SITE stop requested; sequential queue stopped.');
@@ -323,17 +342,20 @@ function output = run_SITE(C)
             end
             k = wanted(ii);
             guiClock = tic;
+            local_ui_call(ui,'activeBasinsFcn',ids(k));
             local_ui_progress(ui,'Calibrating',ii,numel(wanted));
             guiSeconds = toc(guiClock);
             result = calibrate_basin_SITE(mdl,dat{k},ode,loss, ...
                 C.alg,misc);
+            trainingSeconds = trainingSeconds + result.calibrationRuntime;
             store = site_result_store('update',store,k,result, ...
                 lossNames{loss.fnc},C.alg.method,loss);
             guiClock = tic;
+            local_ui_call(ui,'activeBasinsFcn',strings(0,1));
             local_ui_iter(ui,sprintf('Completed basin %d/%d: %s', ...
                 ii,numel(wanted),ids(k)));
             local_ui_result(ui,k,result,store,mdl,bas,ids);
-            local_ui_timing(ui,'train',toc(trainClock));
+            local_ui_timing(ui,'train',trainingSeconds);
             local_ui_gui_time(ui,k,guiSeconds+toc(guiClock),bas.K);
             if mod(ii,saveEvery) == 0 ...
                     || ii == numel(wanted)
@@ -341,7 +363,9 @@ function output = run_SITE(C)
             end
         end
     end
-    local_ui_timing(ui,'train',toc(trainClock));
+    if ~useParallel
+        local_ui_timing(ui,'train',trainingSeconds);
+    end
     
     output = struct('store',store, ...
         'mdl',mdl, ...
@@ -420,7 +444,7 @@ end
 change.newVersion = double(mdl.result_version);
 try
     paths = site_result_store('paths',resultDir,modelName,dtTag, ...
-        region,meteo,prd);
+        region,meteo,prd,mdl);
     change.fileMat = paths.fileMat;
     change.fileBook = paths.fileBook;
     if isfile(paths.fileMat)
@@ -469,7 +493,7 @@ end
 end
 
 function [store,pool] = local_run_parallel(C,wanted,bas,ids,dat, ...
-        mdl,ode,loss,misc,store,lossNames,saveEvery,trainClock)
+        mdl,ode,loss,misc,store,lossNames,saveEvery,setupClock)
 % Keep only a small queue active and perform all persistence on the client.
     ui = local_get(C,'ui',struct());
     requestedWorkers = local_get(C,'numWorkers',[]);
@@ -490,7 +514,7 @@ function [store,pool] = local_run_parallel(C,wanted,bas,ids,dat, ...
     end
     
     maxPending = local_get(C,'maxPending',pool.NumWorkers);
-    maxPending = max(1,min(numel(wanted),floor(maxPending)));
+    maxPending = max(1,min([numel(wanted),pool.NumWorkers,floor(maxPending)]));
     fprintf(['SITE parallel execution: ' ...
         '%d workers, %d active futures.\n'], ...
         pool.NumWorkers,maxPending);
@@ -501,7 +525,12 @@ function [store,pool] = local_run_parallel(C,wanted,bas,ids,dat, ...
     activeBasins = zeros(0,1);
     nextToSubmit = 1;
     completed = 0;
+    trainingSeconds = 0;
+    local_ui_timing(ui,'init',toc(setupClock));
     
+    % Parallel catchment runtimes overlap. Report elapsed queue time,
+    % not their sum; GUI activity can overlap worker computation too.
+    trainingClock = tic;
     while nextToSubmit <= numel(wanted) ...
             && numel(active) < maxPending ...
             && ~local_ui_should_stop(ui)
@@ -510,10 +539,12 @@ function [store,pool] = local_run_parallel(C,wanted,bas,ids,dat, ...
         nextToSubmit = nextToSubmit + 1;
     end
     
+    local_ui_call(ui,'activeBasinsFcn',ids(activeBasins));
     while ~isempty(active)
         [finishedIndex,result] = fetchNext(active);
         k = activeBasins(finishedIndex);
         completed = completed + 1;
+        trainingSeconds = toc(trainingClock);
         fprintf(['  Completed basin %d/%d: ' ...
             '%s (%d/%d requested)\n'], ...
             k,bas.K,ids(k),completed,numel(wanted));
@@ -526,10 +557,6 @@ function [store,pool] = local_run_parallel(C,wanted,bas,ids,dat, ...
             'update',store,k,result, ...
             lossNames{loss.fnc},C.alg.method,loss);
         guiClock = tic;
-        local_ui_result(ui,k,result,store,mdl,bas,ids);
-        local_ui_timing(ui,'train',toc(trainClock));
-        local_ui_gui_time(ui,k,guiSeconds+toc(guiClock),bas.K);
-    
         active(finishedIndex) = [];
         activeBasins(finishedIndex) = [];
         if nextToSubmit <= numel(wanted) && ~local_ui_should_stop(ui)
@@ -539,6 +566,11 @@ function [store,pool] = local_run_parallel(C,wanted,bas,ids,dat, ...
                 dat,mdl,ode,loss,C.alg,misc);
             nextToSubmit = nextToSubmit + 1;
         end
+    
+        local_ui_call(ui,'activeBasinsFcn',ids(activeBasins));
+        local_ui_result(ui,k,result,store,mdl,bas,ids);
+        local_ui_timing(ui,'train',trainingSeconds);
+        local_ui_gui_time(ui,k,guiSeconds+toc(guiClock),bas.K);
     
         if mod(completed,saveEvery) == 0 ...
                 || completed == numel(wanted)
