@@ -1,0 +1,23 @@
+name: Validate benchmark proposal
+on:
+  pull_request:
+    paths:
+      - 'benchmarks/inbox/*.json'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      # Read ONLY trusted validation code from the base commit. Never run
+      # submitted code, workflows, MAT objects, or fork-provided scripts.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - name: Validate proposed numerical data
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 benchmarks/check_pull_request.py
