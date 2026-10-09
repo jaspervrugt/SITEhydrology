@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "archive": "scientific-core.zip",
+  "sha256": "dee9b83092ba233848c7a349d1be5c9ecf597ff21f0f2de456ba2d6197b39d6f",
+  "files": 125,
+  "model_scope": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "dataset_scope": [
+    "CAMELS_US_daily_v1p2"
+  ],
+  "matlab_release": "R2026a"
+}
