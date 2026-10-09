@@ -10,16 +10,21 @@ basinID=char(string(basinID));
 assert(~isempty(regexp(basinID,'^\d{7,8}$','once')), ...
     'SITE:VerificationBasin','Invalid CAMELS-US basin identifier.');
 oldPath=path; restore=onCleanup(@()path(oldPath)); %#ok<NASGU>
-addpath(fullfile(C.SAGEhydro,'utils'));
+% Add only the pinned public numerical/data core. Do not load private or
+% user-installed model plug-ins, GUI code or optimizer implementations.
+addpath(fullfile(C.SAGEhydro,'src'),genpath(fullfile(C.SAGEhydro,'utils')), ...
+    genpath(fullfile(C.SAGEhydro,'models')), ...
+    fullfile(C.SAGEhydro,'regions','US','US'));
 scratch=tempname;mkdir(scratch);
 cleanup=onCleanup(@()rmdir(scratch,'s')); %#ok<NASGU>
-bootstrap_SAGE(fileparts(C.SAGEhydro),C.region,scratch);
 selection=fullfile(scratch,'basin.txt');
 fid=fopen(selection,'w'); assert(fid>=0);
 fprintf(fid,'%s\n',basinID); fclose(fid);
 mdl=struct('model',C.model,'mcode',C.mcode,'calc','seq');
 misc=struct('meteo',C.meteo);
 [mdl,misc]=crr_prepare_backend(mdl,misc);
+assert(C.mcode==4 && strcmp(misc.crr_backend,'cpp'), ...
+    'SITE:VerificationBackend','Approved C++ backend must be available; no fallback is allowed.');
 ode=read_numsettings(C.ode);
 [mdl,~]=read_model(mdl,C.prd);
 mdl=apply_model_configuration(mdl,ode);
