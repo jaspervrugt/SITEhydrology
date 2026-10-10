@@ -1,6 +1,7 @@
 import json, unittest
 from pathlib import Path
 from regional_result_paths import result_paths, approved_paths
+from publish_worker_batch import refresh_shared_file_hashes
 
 class PublicModelTests(unittest.TestCase):
     def setUp(self):
@@ -29,5 +30,14 @@ class PublicModelTests(unittest.TestCase):
     def test_path_injection_rejected(self):
         p=json.loads(json.dumps(self.profiles[0]));p['contract']['model']='../user_model'
         with self.assertRaises(ValueError):result_paths(p)
+
+    def test_summary_checksum_refreshed_for_unchanged_models(self):
+        master=result_paths(self.profiles[0])[2]
+        index={'profiles':{'hbv':{'resultFiles':[{'path':master,'sha256':'old'},
+               {'path':'hbv.mat','sha256':'keep'}]},'hmodel':{'resultFiles':[{'path':master,'sha256':'old'}]}}}
+        refresh_shared_file_hashes(index,[{'path':master,'sha256':'new'}])
+        self.assertEqual(index['profiles']['hbv']['resultFiles'][0]['sha256'],'new')
+        self.assertEqual(index['profiles']['hmodel']['resultFiles'][0]['sha256'],'new')
+        self.assertEqual(index['profiles']['hbv']['resultFiles'][1]['sha256'],'keep')
 
 if __name__=='__main__':unittest.main()

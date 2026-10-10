@@ -6,6 +6,12 @@ from publish_verified import publish
 from deliver_snapshots import deliver
 from regional_result_paths import result_paths
 REPO='jaspervrugt/SITEhydrology'
+
+def refresh_shared_file_hashes(index,files):
+    hashes={x['path']:x['sha256'] for x in files}
+    for entry in index['profiles'].values():
+        for file in entry.get('resultFiles',[]):
+            if file['path'] in hashes:file['sha256']=hashes[file['path']]
 def approved_manifest(base):
     file=base/'profiles.json'
     remote=json.loads(subprocess.check_output(['gh','api',f'repos/{REPO}/contents/benchmarks/profiles.json'],encoding='utf-8'))
@@ -59,6 +65,7 @@ def finish():
     for profile in state['changed_profiles']:
         paths=set(result_paths(profiles[profile]))
         index['profiles'][profile]['resultFiles']=[{'path':x['path'],'sha256':x['sha256']} for x in plan['files'] if x['path'] in paths]
+    refresh_shared_file_hashes(index,plan['files'])
     (root/'index.json').write_text(json.dumps(index))
     deliver(root,state['expected_index_sha'],mirror_plan=plan)
     print('Verified native result files and latest index committed together; history preserved.')
