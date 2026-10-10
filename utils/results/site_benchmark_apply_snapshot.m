@@ -5,7 +5,10 @@ candidate=store;
 candidate.train(:)=NaN;candidate.eval(:)=NaN;
 candidate.theta(:)=NaN;candidate.nTheta(:)=NaN;
 candidate.updated(:)=NaT;candidate.optimizedLoss(:)="";
-candidate.runCount(:)=0;candidate.improvementCount(:)=0;
+candidate.runCount(:)=0;candidate.improvementCount(:)=0;candidate.rangeID(:)=NaN;
+rangeFile=fullfile(store.resultDir,sprintf('param_ranges_%s_%s.csv',store.model,store.dtTag));
+if isfield(store,'rangeFile'),rangeFile=store.rangeFile;end
+candidate.rangeFile=rangeFile;
 for k=1:numel(snapshot.records)
     r=snapshot.records(k);
     row=find(string(store.ids)==string(r.basin),1);
@@ -15,12 +18,18 @@ for k=1:numel(snapshot.records)
     if isempty(r.evaluation),candidate.eval(row,j)=NaN;
     else,candidate.eval(row,j)=r.evaluation;end
     candidate.theta(row,:,j)=r.theta(:).';
-    candidate.nTheta(row,:,j)=r.normalized(:).';
+    if isfield(r,'parameterRange') && ~isempty(r.parameterRange)
+        bounds=r.parameterRange;
+    else
+        bounds=struct('thMin',snapshot.contract.thMin,'thMax',snapshot.contract.thMax);
+    end
+    candidate.rangeID(row,j)=get_or_register_param_range(rangeFile,store.parNames,bounds.thMin,bounds.thMax);
+    candidate.nTheta(row,:,j)=((r.theta(:)-bounds.thMin(:))./(bounds.thMax(:)-bounds.thMin(:))).';
     candidate.optimizedLoss(row,j)=string(r.optimizedLoss);
     candidate.optimizer(row,j)=r.optimizer;
     candidate.runtime(row,j)=r.runtime;
     candidate.updated(row,j)=datetime(r.updated,'InputFormat','yyyy-MM-dd''T''HH:mm:ss');
 end
 [merged,report]=site_benchmark_merge(store,candidate);
-merged.rangeID(isnan(merged.rangeID) & isfinite(merged.train))=store.currentRangeID;
+merged.rangeFile=rangeFile;
 end

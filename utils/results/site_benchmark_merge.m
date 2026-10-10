@@ -24,7 +24,7 @@ if isempty(globalStore)
         merged.optimizer(bad,j)=NaN; merged.runtime(bad,j)=NaN;
         merged.runCount(bad,j)=0; merged.improvementCount(bad,j)=0;
     end
-    merged.rangeID(:)=NaN;
+    merged.rangeID(~valid)=NaN;
     report=struct('improvements',nnz(valid), ...
         'newBasins',numel(candidate.ids),'firstFile',true);
     return
@@ -32,7 +32,7 @@ end
 assert(all(isfield(globalStore,required)),'SITE:BenchmarkSchema', ...
     'Global benchmark has an incomplete result schema.');
 validate(globalStore);
-identity={'model','dtTag','provenance','parNames','thMin','thMax', ...
+identity={'model','dtTag','provenance','parNames', ...
     'metricNames','maximize'};
 for i=1:numel(identity)
     key=identity{i};
@@ -70,7 +70,7 @@ for k=1:numel(rows)
         merged.theta(r,:,j)=candidate.theta(k,:,j);
         merged.nTheta(r,:,j)=candidate.nTheta(k,:,j);
         % rangeID is a local registry reference; never copy a foreign ID.
-        merged.rangeID(r,j)=NaN;
+        merged.rangeID(r,j)=candidate.rangeID(k,j);
         report.improvements=report.improvements+1;
     end
 end
@@ -95,9 +95,11 @@ end
 function valid=validCells(s)
 valid=isfinite(s.train) & ~isnat(s.updated) & strlength(s.optimizedLoss)>0;
 for j=1:numel(s.metricNames)
-    theta=s.theta(:,:,j); x=s.nTheta(:,:,j);
-    valid(:,j)=valid(:,j) & all(isfinite(theta),2) & all(isfinite(x),2) ...
-        & all(theta>=s.thMin(:).' & theta<=s.thMax(:).',2) ...
-        & all(x>=0 & x<=1,2);
+    for k=find(valid(:,j)).'
+        bounds=site_benchmark_record_range(s,k,j);
+        theta=s.theta(k,:,j).';x=s.nTheta(k,:,j).';
+        valid(k,j)=all(isfinite(theta)&isfinite(x)) && ...
+            all(theta>=bounds.thMin & theta<=bounds.thMax) && all(x>=0 & x<=1);
+    end
 end
 end

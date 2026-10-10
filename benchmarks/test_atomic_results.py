@@ -19,19 +19,20 @@ class AtomicTests(unittest.TestCase):
  @patch('deliver_result_files.api')
  @patch('deliver_result_files.current_sha')
  def test_all_four_files_single_commit_no_force(self,sha,api):
-  sha.side_effect=['0','1','2','index']
-  api.side_effect=[{'object':{'sha':'head'}},{'tree':{'sha':'tree'}},{'sha':'b0'},{'sha':'b1'},{'sha':'b2'},{'sha':'bi'},{'sha':'newtree'},{'sha':'newcommit'},{}]
+  n=len(d.PATHS)
+  sha.side_effect=[str(i) for i in range(n)]+['index']
+  api.side_effect=[{'object':{'sha':'head'}},{'tree':{'sha':'tree'}}]+[{'sha':f'b{i}'} for i in range(n+1)]+[{'sha':'newtree'},{'sha':'newcommit'},{}]
   commit=d.deliver_atomic_results(self.root,{},self.plan,'main','benchmarks/index.json','index')
   self.assertEqual(commit,'newcommit')
   self.assertTrue(all(call.args[1]=='head' for call in sha.call_args_list))
-  tree=api.call_args_list[6].args[2]['tree'];self.assertEqual(len(tree),4)
+  tree=api.call_args_list[n+3].args[2]['tree'];self.assertEqual(len(tree),n+1)
   self.assertEqual({x['path'] for x in tree},d.PATHS|{'benchmarks/index.json'})
   self.assertEqual(api.call_args_list[-1].args[2],{'sha':'newcommit','force':False})
  @patch('deliver_result_files.api')
  @patch('deliver_result_files.current_sha')
  def test_changed_index_rejected_before_mutation(self,sha,api):
   api.return_value={'object':{'sha':'head'}}
-  sha.side_effect=['0','1','2','changed']
+  sha.side_effect=[str(i) for i in range(len(d.PATHS))]+['changed']
   with self.assertRaisesRegex(RuntimeError,'index changed'):d.deliver_atomic_results(self.root,{},self.plan,'main','benchmarks/index.json','index')
   api.assert_called_once_with('git/ref/heads/main')
  @patch('deliver_result_files.api')

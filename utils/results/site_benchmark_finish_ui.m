@@ -1,4 +1,5 @@
 function status = site_benchmark_finish_ui(fig,output,C,logFcn)
+rawLogFcn=logFcn; logFcn=@(message)site_benchmark_log_ui(rawLogFcn,message);
 %SITE_BENCHMARK_FINISH_UI Prepare one recoverable end-of-run contribution.
 % Called exclusively by SITE_ui, after run_SITE has returned and saved.
 % No token is embedded and no remote files are modified by this helper.
@@ -14,18 +15,6 @@ assert(isscalar(fig) && isgraphics(fig,'figure'),'SITE:BenchmarkGUIRequired', ..
     'Benchmark synchronization requires the SITE GUI.');
 if ~isfield(output,'store') || isempty(output.store), return, end
 s=output.store;
-% The pilot whitelist is explicit. A first local period is not evidence
-% that it matches a global default. Other datasets are enabled later with
-% approved profiles, never automatically from arbitrary user settings.
-pilotPeriod=struct('dt','daily','method','manual','spinup',365, ...
-    'dts',[1 10 1999],'dte',[30 9 2008], ...
-    'des',[1 10 1989],'dee',[30 9 1999]);
-if ~strcmpi(s.provenance.region,'CAMELS_US') || ~strcmpi(s.dtTag,'daily') ...
-        || ~isequaln(jsondecode(char(s.period.signature)), ...
-        jsondecode(jsonencode(pilotPeriod)))
-    status.message='Shared benchmarks: this experiment is outside the CAMELS-US daily pilot.';
-    logFcn(status.message); return
-end
 if ~isfield(s,'configuration') || s.configuration.changed
     status.message='Shared benchmarks: nondefault model configuration remains local.';
     logFcn(status.message); return
@@ -33,6 +22,28 @@ end
 % Exact values are checked against a centrally approved profile before any
 % publication. Period IDs and filenames alone never establish eligibility.
 contract=site_benchmark_contract(s,C);
+% Region-independent eligibility: only centrally enabled exact contracts
+% participate. Unknown regions/default profiles remain local until their
+% official input data and numerical verification path are registered.
+try
+    manifest=webread( ...
+        'https://raw.githubusercontent.com/jaspervrugt/SITEhydrology/main/benchmarks/profiles.json', ...
+        weboptions('ContentType','json','Timeout',30));
+    approved=false;
+    for k=1:numel(manifest.profiles)
+        profile=manifest.profiles(k);
+        if profile.enabled && site_benchmark_profile_equal(profile.contract,contract)
+            approved=true;break
+        end
+    end
+    if ~approved
+        status.message='Shared benchmarks: no enabled default profile matches this experiment; results remain local.';
+        logFcn(status.message);return
+    end
+catch
+    % An offline completion must preserve a recoverable contribution.
+    logFcn('Shared benchmarks: profile lookup unavailable; saving locally for later eligibility checking.');
+end
 % Algorithm, trials and optimizer settings deliberately do not enter the
 % experiment identity. The server will normalize loss selection separately
 % from loss-definition settings when approving profiles.

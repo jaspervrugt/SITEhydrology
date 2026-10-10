@@ -2,7 +2,7 @@ function payload=site_benchmark_filter_records(payload,snapshot,approved)
 % Upload only potential improvements; the server still recomputes scores.
 keep=false(size(payload.records));
 if ~isempty(snapshot)
-    assert(isequaln(orderfields(snapshot.contract),orderfields(payload.contract)), ...
+    assert(site_benchmark_profile_equal(snapshot.contract,payload.contract), ...
         'SITE:BenchmarkMismatch','Existing benchmark experiment differs.');
 end
 for k=1:numel(payload.records)

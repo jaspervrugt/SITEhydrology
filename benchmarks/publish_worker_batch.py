@@ -25,7 +25,11 @@ def prepare():
         profile='camels_us_daily_nldas_pm_hbv_default'
         if set(index['profiles'])!={profile}:raise RuntimeError('No native exporter approved for this profile')
         for path in sorted(PATHS):
-            obj=json.loads(subprocess.check_output(['gh','api',f'repos/{REPO}/contents/{path}'],encoding='utf-8'))
+            response=subprocess.run(['gh','api',f'repos/{REPO}/contents/{path}'],capture_output=True,text=True,encoding='utf-8')
+            if response.returncode:
+                if path.endswith('.csv') and 'HTTP 404' in response.stderr:state['inputs'][path]=None;continue
+                raise RuntimeError('Cannot read existing public results')
+            obj=json.loads(response.stdout)
             blob=json.loads(subprocess.check_output(['gh','api',f'repos/{REPO}/git/blobs/{obj["sha"]}'],encoding='utf-8'))
             data=base64.b64decode(blob['content'])
             if hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()!=obj['sha']:raise ValueError('Public input hash mismatch')

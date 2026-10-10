@@ -31,6 +31,8 @@ par_names = string(par_names(:));
 th_min = double(th_min(:));
 th_max = double(th_max(:));
 d = numel(par_names);
+assert(all(isfinite(th_min)&isfinite(th_max)&th_min<th_max), ...
+    'SITE:InvalidParameterRange','Bounds must be finite and strictly increasing.');
 
 if numel(th_min) ~= d ...
         || numel(th_max) ~= d
@@ -119,10 +121,8 @@ if ~isempty(T)
 
         same_names = isequal(string( ...
             Ti.symbol(:)),par_names);
-        same_min = all(abs(double( ...
-            Ti.th_min(:)) - th_min) <= 1e-12);
-        same_max = all(abs(double( ...
-            Ti.th_max(:)) - th_max) <= 1e-12);
+        same_min = isequal(double(Ti.th_min(:)),th_min);
+        same_max = isequal(double(Ti.th_max(:)),th_max);
 
         if same_names && same_min && same_max
             range_id = rid;
@@ -158,11 +158,27 @@ T.symbol = string(T.symbol);
 T.th_min = double(T.th_min);
 T.th_max = double(T.th_max);
 
-writetable(T,file_param_ranges);
+% Preserve all binary-double digits so exact range matching survives CSV.
+folder=fileparts(file_param_ranges);if isempty(folder),folder=pwd;end
+if ~isfolder(folder),mkdir(folder);end
+temporary=[tempname(folder) '.csv'];fid=fopen(temporary,'w','n','UTF-8');assert(fid>=0);
+cleanup=onCleanup(@()local_cleanup_range(fid,temporary)); %#ok<NASGU>
+fprintf(fid,'range_id,n_par,symbol,th_min,th_max\n');
+for k=1:height(T)
+    symbol=strrep(char(T.symbol(k)),'"','""');
+    fprintf(fid,'%d,%d,"%s",%.17g,%.17g\n',T.range_id(k),T.n_par(k),symbol,T.th_min(k),T.th_max(k));
+end
+fclose(fid);
+[ok,message]=movefile(temporary,file_param_ranges,'f');assert(ok,'SITE:RangeRegistryWrite','%s',message);
 end
 
 function backup = local_backup_name(file)
 [folder,name,ext] = fileparts(file);
 stamp = char(datetime('now','Format','yyyyMMdd_HHmmss_SSS'));
 backup = fullfile(folder,[name '_obsolete_' stamp ext '.bak']);
+end
+
+function local_cleanup_range(fid,file)
+try,fclose(fid);catch,end
+if isfile(file),delete(file);end
 end

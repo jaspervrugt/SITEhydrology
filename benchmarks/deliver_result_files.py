@@ -3,6 +3,7 @@ import base64,hashlib,json,subprocess
 from pathlib import Path
 REPO='jaspervrugt/SITEhydrology'
 PATHS={
+'results/CAMELS_US/daily/period_001/nldas_penman_monteith/param_ranges_hbv_daily.csv',
 'results/CAMELS_US/daily/period_001/nldas_penman_monteith/SITE_hbv_daily_nldas_penman_monteith_p001_checkpoint.mat',
 'results/CAMELS_US/daily/period_001/nldas_penman_monteith/param_hbv_daily_nldas_penman_monteith_p001.xlsx',
 'results/CAMELS_US/daily/period_001/nldas_penman_monteith/model_master_daily_nldas_penman_monteith_p001.xlsx'}
@@ -20,7 +21,7 @@ def current_sha(path,branch):
     return json.loads(response.stdout)['sha'] if response.returncode==0 else None
 def deliver_atomic_results(root,index,plan,branch,index_path,expected_index_sha):
     root=Path(root).resolve();items=plan['files']
-    if len(items)!=3 or {x['path'] for x in items}!=PATHS:
+    if len(items)!=4 or {x['path'] for x in items}!=PATHS:
         raise ValueError('Unexpected public result destinations')
     # Pin the parent before validating blobs. Concurrent updates then fail
     # the non-forced ref update rather than becoming our new parent.
