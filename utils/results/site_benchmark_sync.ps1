@@ -40,6 +40,11 @@ function Convert-Canonical($Value) {
     }
     return $Value
 }
+function Get-ProfileJson($Value) {
+    $identity=Convert-Canonical $Value
+    $identity.Remove('thMin');$identity.Remove('thMax')
+    return ($identity | ConvertTo-Json -Depth 100 -Compress)
+}
 function Get-CanonicalJson($Value){return (Convert-Canonical $Value | ConvertTo-Json -Depth 100 -Compress)}
 function Save-Credential([string]$Text) {
     Add-Type -AssemblyName System.Security
@@ -99,7 +104,7 @@ function Get-Snapshot([string]$Profile) {
     } finally {if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp}}
 }
 function Select-Improvements($Payload,$Snapshot,$Approved) {
-    if($null -ne $Snapshot -and (Get-CanonicalJson $Snapshot.contract) -cne (Get-CanonicalJson $Payload.contract)){throw 'Different benchmark contract'}
+    if($null -ne $Snapshot -and (Get-ProfileJson $Snapshot.contract) -cne (Get-ProfileJson $Payload.contract)){throw 'Different benchmark contract'}
     $incumbents=@{}
     if($null -ne $Snapshot){foreach($r in @($Snapshot.records)){$incumbents[$r.basin+'|'+$r.metric]=$r}}
     $allowed=@{};foreach($id in @($Approved.basinIds)){$allowed[[string]$id]=$true}
@@ -120,9 +125,10 @@ function Select-Improvements($Payload,$Snapshot,$Approved) {
 function Submit-Payload($Payload,[string]$Token) {
     $manifest=Get-ContentJson 'benchmarks/profiles.json'
     $approved=$null
-    foreach($p in @($manifest.profiles)){if($p.enabled -and (Get-CanonicalJson $p.contract) -ceq (Get-CanonicalJson $Payload.contract)){$approved=$p;break}}
+    foreach($p in @($manifest.profiles)){if($p.enabled -and (Get-ProfileJson $p.contract) -ceq (Get-ProfileJson $Payload.contract)){$approved=$p;break}}
     if($null -eq $approved){return @{state='unapproved'}}
     if($approved.id -notmatch '^[a-z][a-z0-9_]{0,99}$'){throw 'Invalid profile ID'}
+    $Payload.contract=$approved.contract
     $snapshot=Get-Snapshot $approved.id
     $Payload.records=Select-Improvements $Payload $snapshot $approved
     if(@($Payload.records).Count -eq 0){return @{state='current'}}

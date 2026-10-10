@@ -1,4 +1,5 @@
 function result=site_benchmark_github_ui(fig,pendingFile,logFcn,automatic)
+rawLogFcn=logFcn; logFcn=@(message)site_benchmark_log_ui(rawLogFcn,message);
 if nargin<4,automatic=false;end
 %SITE_BENCHMARK_GITHUB_UI Submit a proposed update, never write benchmarks.
 % Only deployed GUI calls are eligible. The origin label is informational;
@@ -18,30 +19,28 @@ if automatic
     token=site_benchmark_login_ui(fig,cfg.clientId,true);
     if isempty(token),return,end
 else
-    reply=uiconfirm(fig,[ ...
-        'Submit default-setting fits for verification on GitHub? ' ...
-        'If the connection fails, SITE will retry while open and on Windows after it closes. '], ...
-        'Contribute SITE benchmarks','Options',{'Submit','Keep local'}, ...
-        'DefaultOption',1,'CancelOption',2);
-    if ~strcmp(reply,'Submit'),return,end
+    % Default-setting contributions are automatic; the pre-run dialog
+    % explains this independently of the optional benchmark download.
+    logFcn('Shared benchmarks: automatically submitting completed default-setting fits for verification; verified improvements can update GitHub.');
     setappdata(fig,'SITEBenchmarkRetryApproved',true);
     try,site_benchmark_background_ui('queue',fig,pendingFile,logFcn);
     catch,logFcn('Shared benchmarks: background retry could not be configured; pending results remain local.');end
 end
+stage='reading local pending results';
 try
     loaded=load(pendingFile,'submission');
     payload=site_benchmark_payload(loaded.submission);
     % Download the trusted approved manifest before authenticating. Empty
     % manifests and unapproved profiles cannot request any upload.
     root=sprintf('https://api.github.com/repos/%s/%s',cfg.owner,cfg.repository);
+    stage='checking approved GitHub profiles';
     manifest=api('get',[root '/contents/benchmarks/profiles.json'],'',[],true);
     manifest=jsondecode(native2unicode(matlab.net.base64decode( ...
         regexprep(manifest.content,'\s','')),'UTF-8'));
     profile='';
     for i=1:numel(manifest.profiles)
         approved=manifest.profiles(i);
-        if approved.enabled && strcmp(jsonencode(orderValue(approved.contract)), ...
-                jsonencode(orderValue(jsondecode(jsonencode(payload.contract)))))
+        if approved.enabled && site_benchmark_profile_equal(approved.contract,payload.contract)
             profile=approved.id;break
         end
     end
@@ -49,7 +48,8 @@ try
         logFcn('Shared benchmarks: this exact experiment has not yet been approved.');
         return
     end
-    payload.profile=profile;
+    payload.profile=profile;payload.contract=approved.contract;
+    stage='downloading current verified benchmark snapshot';
     snapshot=site_benchmark_fetch_snapshot(profile);
     payload=site_benchmark_filter_records(payload,snapshot,approved);
     if isempty(payload.records)
@@ -58,12 +58,17 @@ try
     end
     body=jsonencode(payload); bytes=unicode2native(body,'UTF-8');
     assert(numel(bytes)<=20*1024*1024,'SITE:BenchmarkSize','Submission is too large.');
+    stage='GitHub sign-in';
     if ~automatic,[token,credential]=site_benchmark_login_ui(fig,cfg.clientId);end
-    if isempty(token),return,end
+    if isempty(token)
+        logFcn('Shared benchmarks: GitHub sign-in was not completed; pending results remain local. Background upload requires successful sign-in.');
+        return
+    end
     if ~automatic
         try,site_benchmark_background_ui('credential',fig,jsonencode(credential),logFcn);
         catch,logFcn('Shared benchmarks: sign-in could not be saved securely; retry is limited to this session.');end
     end
+    stage='checking GitHub account';
     account=api('get','https://api.github.com/user',token,[],false);
     login=account.login;
     repo=root;
@@ -97,11 +102,13 @@ try
     catch
         % Missing candidate is expected for a newly created branch.
     end
+    stage='uploading proposed benchmark fits';
     api('put',[repo '/contents/' path],token,commit,false);
     head=[login ':' branch];
     assert(~isempty(regexp(login,'^[A-Za-z0-9-]+$','once')), ...
         'SITE:BenchmarkLogin','Unexpected GitHub login.');
     % Login and generated branch use URL-safe characters; encode the colon.
+    stage='creating benchmark verification request';
     prs=api('get',[root '/pulls?state=open&head=' strrep(head,':','%3A')],token,[],false);
     if isempty(prs)
         pr=api('post',[root '/pulls'],token,struct( ...
@@ -116,7 +123,10 @@ try
     % Keep the pending snapshot until acceptance; a submitted PR is not
     % proof that the global benchmark has changed.
     logFcn(['Shared benchmarks: proposed update submitted: ' result.url]);
-catch
+catch ME
+    % Report stage and identifier only, never API bodies or credentials.
+    logFcn(sprintf('Shared benchmarks: submission failed while %s (%s).', ...
+        stage,ME.identifier));
     logFcn(['Shared benchmarks: submission was not completed. ' ...
         'The pending results are preserved locally for retry.']);
 end

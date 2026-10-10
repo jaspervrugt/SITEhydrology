@@ -9,7 +9,7 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from validate_submission import read_json, validate
+from validate_submission import read_json, validate, vector
 
 
 def canonical(value):
@@ -102,6 +102,11 @@ def _publish(candidate_file, manifest_file, receipt_file, root, verifier_revisio
     if isinstance(directions, bool):
         directions = [directions]
     maximize = dict(zip(metrics, directions))
+    defaults={'id':1,'thMin':vector(profile['contract']['thMin']), 'thMax':vector(profile['contract']['thMax'])}
+    ranges=snapshot.get('parameterRanges',[defaults])
+    if isinstance(ranges,dict):ranges=[ranges]
+    for old in snapshot['records']:
+        if 'parameterRange' not in old:old['parameterRange']=dict(defaults)
     by_key = {(r["basin"], r["metric"]): r for r in snapshot["records"]}
     records = verified_records
     if isinstance(records, dict):
@@ -113,11 +118,19 @@ def _publish(candidate_file, manifest_file, receipt_file, root, verifier_revisio
         better = old is None or (r["train"] > old["train"] if maximize[r["metric"]]
                                  else r["train"] < old["train"])
         if better:
+            r=dict(r)
+            bounds=r.get('parameterRange',defaults)
+            same=next((p for p in ranges if vector(p['thMin'])==vector(bounds['thMin']) and vector(p['thMax'])==vector(bounds['thMax'])),None)
+            if same is None:
+                same={'id':max(p['id'] for p in ranges)+1,'thMin':vector(bounds['thMin']),'thMax':vector(bounds['thMax'])}
+                ranges.append(same)
+            r['parameterRange']=dict(same)
             by_key[key] = r
             improved += 1
     if not improved:
         return {"improvements": 0, "published": False}
     snapshot["records"] = [by_key[k] for k in sorted(by_key)]
+    snapshot['parameterRanges']=ranges
     raw = canonical(snapshot)
     sha = hashlib.sha256(raw).hexdigest()
     relative = f"snapshots/{profile_id}/{sha}.json"

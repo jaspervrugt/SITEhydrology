@@ -34,6 +34,7 @@ for k=1:numel(snapshot.records)
  store.train(row,j)=r.train;if isempty(r.evaluation),store.eval(row,j)=NaN;else,store.eval(row,j)=r.evaluation;end
  store.theta(row,:,j)=r.theta(:).';store.nTheta(row,:,j)=r.normalized(:).';
  store.optimizedLoss(row,j)=string(r.optimizedLoss);store.optimizer(row,j)=r.optimizer;store.runtime(row,j)=r.runtime;
+ if isfield(r,'parameterRange'),store.rangeID(row,j)=r.parameterRange.id;else,store.rangeID(row,j)=1;end
  store.updated(row,j)=datetime(r.updated,'InputFormat','yyyy-MM-dd''T''HH:mm:ss');
  if ~isfield(loaded.store,'sharedBenchmarkContract')
   % Bootstrap counts remain historical. This is numerical verification,
@@ -50,8 +51,13 @@ store.fileBook=fullfile(folder,'param_hbv_daily_nldas_penman_monteith_p001.xlsx'
 store.fileSummary=fullfile(folder,'model_master_daily_nldas_penman_monteith_p001.xlsx');
 assert(~strcmp(checkpointFile,store.fileMat),'SITE:ExportIsolation','Export must use a separate destination.');
 if isfile(masterFile),copyfile(masterFile,store.fileSummary,'f');end
+store.rangeFile=fullfile(folder,'param_ranges_hbv_daily.csv');
+if isfield(snapshot,'parameterRanges'),ranges=snapshot.parameterRanges;else,ranges=struct('id',1,'thMin',contract.thMin,'thMax',contract.thMax);end
+for k=1:numel(ranges)
+ id=get_or_register_param_range(store.rangeFile,store.parNames,ranges(k).thMin,ranges(k).thMax);assert(id==ranges(k).id);
+end
 site_result_store('save',store);
-files={strrep(store.fileMat,[outputRoot filesep],''),strrep(store.fileBook,[outputRoot filesep],''),strrep(store.fileSummary,[outputRoot filesep],'')};files=strrep(files,filesep,'/');
+files={strrep(store.fileMat,[outputRoot filesep],''),strrep(store.fileBook,[outputRoot filesep],''),strrep(store.fileSummary,[outputRoot filesep],'')};files{end+1}=strrep(store.rangeFile,[outputRoot filesep],'');files=strrep(files,filesep,'/');
 fid=fopen(fullfile(outputRoot,'result-files.json'),'wb');assert(fid>=0);fwrite(fid,unicode2native(jsonencode(strrep(files,'\','/')),'UTF-8'),'uint8');fclose(fid);
 fprintf('Exported existing public result paths with sorted basin IDs.\n');
 end

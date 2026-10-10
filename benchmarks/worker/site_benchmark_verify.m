@@ -28,6 +28,11 @@ for b=1:numel(basins)
         r=records(k);
         theta=double(r.theta(:));
         lo=ctx.mdl.th_min(:); hi=ctx.mdl.th_max(:);
+        if isfield(r,'parameterRange')
+            lo=double(r.parameterRange.thMin(:));hi=double(r.parameterRange.thMax(:));
+        end
+        assert(numel(lo)==numel(ctx.mdl.th_min)&&numel(hi)==numel(lo)&&all(isfinite(lo)&isfinite(hi)&lo<hi));
+        fitModel=ctx.mdl;fitModel.th_min=lo;fitModel.th_max=hi;
         assert(numel(theta)==numel(lo) && all(isfinite(theta)) ...
             && all(theta>=lo & theta<=hi), ...
             'SITE:VerificationParameters','Invalid parameter vector.');
@@ -41,9 +46,9 @@ for b=1:numel(basins)
         else
             request=crr_request(struct('metrics',true));
             if strcmp(ctx.backend,'cpp')
-                [~,out]=crr_model_cpp(x,ctx.mdl,ctx.dat,ctx.ode,ctx.loss,request);
+                [~,out]=crr_model_cpp(x,fitModel,ctx.dat,ctx.ode,ctx.loss,request);
             else
-                [~,out]=crr_model(x,ctx.mdl,ctx.dat,ctx.ode,ctx.loss,request);
+                [~,out]=crr_model(x,fitModel,ctx.dat,ctx.ode,ctx.loss,request);
             end
             metrics=out.metrics;evaluated(key)=metrics;
         end
@@ -90,5 +95,3 @@ end
 function s=skill(d,ref)
 if ~isfinite(ref) || ref<=0,s=NaN;else,s=1-d/ref;end
 end
-
-

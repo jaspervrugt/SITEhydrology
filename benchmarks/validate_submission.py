@@ -82,8 +82,18 @@ def validate(payload, manifest):
                "optimizedLoss", "optimizer", "runtime", "updated"}
     seen = set()
     for r in records:
-        if set(r) != allowed:
+        if set(r) not in (allowed, allowed | {'parameterRange'}):
             raise ValueError("Unexpected record fields")
+        low, high = bounds_low, bounds_high
+        if 'parameterRange' in r:
+            pr = r['parameterRange']
+            if not isinstance(pr, dict) or set(pr) != {'id', 'thMin', 'thMax'}:
+                raise ValueError('Invalid parameter range')
+            if not number(pr['id']) or pr['id'] < 1 or pr['id'] != int(pr['id']):
+                raise ValueError('Invalid parameter range ID')
+            low, high = vector(pr['thMin']), vector(pr['thMax'])
+            if len(low) != len(bounds_low) or len(high) != len(low) or any(a >= b for a,b in zip(low,high)):
+                raise ValueError('Invalid parameter range bounds')
         key = r["basin"], r["metric"]
         if key[0] not in ids or key[1] not in metrics or key in seen:
             raise ValueError("Unknown or duplicate basin/metric")
@@ -95,10 +105,12 @@ def validate(payload, manifest):
         theta, normalized = vector(r["theta"]), vector(r["normalized"])
         if len(theta) != len(bounds_low) or len(normalized) != len(theta):
             raise ValueError("Parameter dimensions differ")
-        if any(not lo <= x <= hi for x, lo, hi in zip(theta, bounds_low, bounds_high)):
+        if any(not lo <= x <= hi for x, lo, hi in zip(theta, low, high)):
             raise ValueError("Parameters outside approved bounds")
         if any(not 0 <= x <= 1 for x in normalized):
             raise ValueError("Normalized parameters outside bounds")
+        if any(abs((t-lo)/(hi-lo)-x) > 1e-9 for t,lo,hi,x in zip(theta,low,high,normalized)):
+            raise ValueError('Normalized and physical parameters differ')
         if not isinstance(r["optimizedLoss"], str) or not r["optimizedLoss"]:
             raise ValueError("Missing optimization provenance")
         if not number(r["runtime"]) or r["runtime"] < 0:

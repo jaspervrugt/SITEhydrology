@@ -22,6 +22,9 @@ switch lower(action)
     case 'save'
         store = varargin{1};
         local_save(store);
+    case 'provenance'
+        % Read-only metadata for administrator-generated default profiles.
+        store = local_provenance(varargin{:});
     case 'paths'
         store = local_paths(varargin{:});
     otherwise
@@ -110,6 +113,7 @@ store.columnNames = site_parameter_names(store.parNames);
 store.thMin = mdl.th_min(:);
 store.thMax = mdl.th_max(:);
 store.currentRangeID = currentRangeID;
+store.rangeFile=fullfile(resultDir,sprintf('param_ranges_%s_%s.csv',modelName,dtTag));
 store.fdcD0t = fdcD0t;
 store.fdcD0e = fdcD0e;
 store.fdcD0pt = fdcD0pt;

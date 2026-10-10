@@ -1,4 +1,5 @@
 function store=site_benchmark_seed_ui(fig,store,C,logFcn)
+rawLogFcn=logFcn; logFcn=@(message)site_benchmark_log_ui(rawLogFcn,message);
 %SITE_BENCHMARK_SEED_UI Download verified defaults before GUI training.
 % Network/compatibility failures leave existing local results untouched.
 if ~isdeployed || ~isscalar(fig) || ~isgraphics(fig,'figure'),return,end
@@ -14,14 +15,29 @@ try
     profile='';
     for k=1:numel(manifest.profiles)
         p=manifest.profiles(k);
-        if p.enabled && isequaln(orderfields(p.contract),orderfields(contract))
+        if p.enabled && site_benchmark_profile_equal(p.contract,contract)
             profile=p.id;break
         end
     end
     if isempty(profile),return,end
+    % Download choice is independent of automatic end-of-run contribution.
+    setappdata(fig,'SITEBenchmarkRetryApproved',true);
+    reply=uiconfirm(fig,[ ...
+        'Your settings match an enabled default benchmark. Download the latest ' ...
+        'verified results from GitHub before training? Existing better local ' ...
+        'results will be retained. At the end of this run, completed local fits ' ...
+        'are automatically submitted for verification; better basin/metric ' ...
+        'results can update the shared GitHub benchmarks. This also applies ' ...
+        'if you choose No. GitHub sign-in may be required to submit results.'], ...
+        'Shared SITE results','Options',{'Yes','No'}, ...
+        'DefaultOption',1,'CancelOption',2);
+    if ~strcmp(reply,'Yes')
+        logFcn('Shared benchmarks: download declined; existing local results retained. End-of-run contribution remains enabled.');
+        return
+    end
     snapshot=site_benchmark_fetch_snapshot(profile);
     if isempty(snapshot),return,end
-    assert(isequaln(orderfields(snapshot.contract),orderfields(contract)), ...
+    assert(site_benchmark_profile_equal(snapshot.contract,contract), ...
         'SITE:BenchmarkMismatch','Snapshot experiment differs.');
     [merged,report]=site_benchmark_apply_snapshot(store,snapshot);
     if report.improvements>0

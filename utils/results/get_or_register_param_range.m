@@ -31,6 +31,8 @@ par_names = string(par_names(:));
 th_min = double(th_min(:));
 th_max = double(th_max(:));
 d = numel(par_names);
+assert(all(isfinite(th_min)&isfinite(th_max)&th_min<th_max), ...
+    'SITE:InvalidParameterRange','Bounds must be finite and strictly increasing.');
 
 if numel(th_min) ~= d ...
         || numel(th_max) ~= d
@@ -119,10 +121,8 @@ if ~isempty(T)
 
         same_names = isequal(string( ...
             Ti.symbol(:)),par_names);
-        same_min = all(abs(double( ...
-            Ti.th_min(:)) - th_min) <= 1e-12);
-        same_max = all(abs(double( ...
-            Ti.th_max(:)) - th_max) <= 1e-12);
+        same_min = isequal(double(Ti.th_min(:)),th_min);
+        same_max = isequal(double(Ti.th_max(:)),th_max);
 
         if same_names && same_min && same_max
             range_id = rid;
