@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "archive": "scientific-core.zip",
-  "sha256": "dee9b83092ba233848c7a349d1be5c9ecf597ff21f0f2de456ba2d6197b39d6f",
-  "files": 125,
+  "sha256": "de2a89efe82d1a2b70ab06cc92b47036bc13e4e1e561be3207a5e94b24552a7a",
+  "files": 139,
   "model_scope": [
     1,
     2,
@@ -10,7 +10,8 @@
     4,
     5,
     6,
-    7
+    7,
+    99
   ],
   "dataset_scope": [
     "CAMELS_US_daily_v1p2"

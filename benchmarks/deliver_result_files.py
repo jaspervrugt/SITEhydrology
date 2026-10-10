@@ -21,7 +21,12 @@ def current_sha(path,branch):
     return json.loads(response.stdout)['sha'] if response.returncode==0 else None
 def deliver_atomic_results(root,index,plan,branch,index_path,expected_index_sha):
     root=Path(root).resolve();items=plan['files']
-    if len(items)!=4 or {x['path'] for x in items}!=PATHS:
+    allowed=PATHS
+    if (root/'approved-profiles.json').is_file():
+        from regional_result_paths import approved_paths
+        allowed=approved_paths(json.loads((root/'approved-profiles.json').read_text()))
+    paths={x['path'] for x in items}
+    if not items or len(paths)!=len(items) or not paths.issubset(allowed):
         raise ValueError('Unexpected public result destinations')
     # Pin the parent before validating blobs. Concurrent updates then fail
     # the non-forced ref update rather than becoming our new parent.
