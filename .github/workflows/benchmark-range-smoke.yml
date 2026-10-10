@@ -2,7 +2,7 @@ name: Test shared parameter ranges
 on:
   push:
     branches: [site-parameter-ranges-20261009]
-    paths: [.github/workflows/benchmark-range-smoke.yml]
+    paths: [.github/workflows/benchmark-range-smoke.yml, benchmarks/**, utils/results/**]
   workflow_dispatch:
 permissions:
   contents: read
@@ -40,6 +40,7 @@ jobs:
             fullfile(pwd,'benchmarks','tests','profiles.json'),
             fullfile(pwd,'benchmarks','worker','worker-config.json'),
             fullfile(pwd,'worker-receipt.json'),revision);
+            addpath(fullfile(pwd,'utils','results'));test_shared_range_native_export;
       - name: Test local immutable publication without GitHub writes
         run: python3 benchmarks/test_range_worker_publication.py
       - if: always()
