@@ -35,8 +35,8 @@ for b=1:numel(ids)
         end
         if ok,accepted(end+1)=id;proof=rows;report.passed=report.passed+1;
         else,report.failed=report.failed+1;logFcn(sprintf('Shared benchmarks: reference scores differ for basin %s; its results remain local.',id));end
-    catch
-        report.failed=report.failed+1;logFcn(sprintf('Shared benchmarks: reference check failed for basin %s; its results remain local.',id));
+    catch ME
+        report.failed=report.failed+1;logFcn(sprintf('Shared benchmarks: reference check failed for basin %s (%s); its results remain local.',id,ME.identifier));
     end
     drawnow limitrate nocallbacks
 end
@@ -46,6 +46,7 @@ payload.localReferenceCheck=struct('schema',1,'mode','local_reference', ...
 end
 
 function yes=sameScore(actual,claimed)
+if isempty(actual),actual=NaN;end
 if isempty(claimed),claimed=NaN;end
 yes=(isnan(actual)&&isnan(claimed))||(isfinite(actual)&&isfinite(claimed)&&abs(actual-claimed)<=1e-8+1e-6*abs(claimed));
 end
@@ -62,7 +63,9 @@ switch char(name)
  case 'S_logp',t=skill(m.Dlogpt,loss.fdc.Q.D0logpt);e=skill(m.Dlogpe,loss.fdc.Q.D0logpe);
  otherwise,error('SITE:ReferenceMetric','Unknown metric.');
 end
+if isempty(t),t=NaN;end
+if isempty(e),e=NaN;end
 end
 function s=skill(d,ref)
-if ~isfinite(ref)||ref<=0,s=NaN;else,s=1-d/ref;end
+if isempty(d)||isempty(ref)||~isfinite(ref)||ref<=0,s=NaN;else,s=1-d/ref;end
 end
