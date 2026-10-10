@@ -18,9 +18,9 @@ class PublicModelTests(unittest.TestCase):
 
     def test_distinct_model_files_shared_master(self):
         paths=[result_paths(p) for p in self.profiles]
-        for col in (0,1,3):self.assertEqual(len({p[col] for p in paths}),8)
-        self.assertEqual(len({p[2] for p in paths}),1)
-        self.assertEqual(len(approved_paths(self.manifest)),25)
+        for col in (0,1,3):self.assertEqual(len({p[col] for p in paths}),len(self.profiles))
+        self.assertEqual(len({p[2] for p in paths}),2)
+        self.assertEqual(len(approved_paths(self.manifest)),32)
 
     def test_native_model_names_match_gui_lowercase(self):
         self.assertTrue(all(p['contract']['model']==p['contract']['model'].lower() for p in self.profiles))
@@ -44,3 +44,15 @@ class PublicModelTests(unittest.TestCase):
         self.assertEqual(index['profiles']['hbv']['resultFiles'][1]['sha256'],'keep')
 
 if __name__=='__main__':unittest.main()
+
+class HourlyProfileTests(unittest.TestCase):
+    def test_hourly_defaults(self):
+        manifest=json.loads((Path(__file__).parent/"profiles.json").read_text())
+        hourly=[p for p in manifest["profiles"] if p["contract"]["resolution"]=="hourly"]
+        self.assertEqual({p["contract"]["model"] for p in hourly},{"hbv","xinanjiang"})
+        for p in hourly:
+            period=json.loads(p["contract"]["period"])
+            self.assertEqual(period["dts"],[1,10,2008]);self.assertEqual(period["dte"],[30,9,2015])
+            self.assertEqual(period["des"],[1,10,2000]);self.assertEqual(period["dee"],[30,9,2008])
+            self.assertEqual(period["spinup"],365)
+            self.assertEqual(len(p["contract"]["metrics"]),9)
