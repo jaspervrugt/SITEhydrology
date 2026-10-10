@@ -12,7 +12,7 @@ class PublicModelTests(unittest.TestCase):
 
     def test_all_eight_have_matching_enabled_workers(self):
         self.assertEqual({p['contract']['model'] for p in self.profiles},
-                         {'hymod','hmodel','sacsma','Xinanjiang','gr4jA','hbv','cfe_nwm','user_model'})
+                         {'hymod','hmodel','sacsma','xinanjiang','gr4ja','hbv','cfe_nwm','user_model'})
         self.assertTrue(all(p['enabled'] for p in self.profiles))
         self.assertEqual({p['id'] for p in self.profiles},{p['id'] for p in self.workers})
 
@@ -21,6 +21,9 @@ class PublicModelTests(unittest.TestCase):
         for col in (0,1,3):self.assertEqual(len({p[col] for p in paths}),8)
         self.assertEqual(len({p[2] for p in paths}),1)
         self.assertEqual(len(approved_paths(self.manifest)),25)
+
+    def test_native_model_names_match_gui_lowercase(self):
+        self.assertTrue(all(p['contract']['model']==p['contract']['model'].lower() for p in self.profiles))
 
     def test_user_example_requires_definition_fingerprint(self):
         self.assertTrue(all(w['run']['model'] in [1,2,3,4,5,6,7,99] for w in self.workers))
