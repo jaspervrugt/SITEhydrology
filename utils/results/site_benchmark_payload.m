@@ -1,6 +1,7 @@
 function payload=site_benchmark_payload(submission)
 %SITE_BENCHMARK_PAYLOAD Export only numerical records and public provenance.
 % Never upload local paths, run configuration directories, or MAT objects.
+if isfield(submission,'localCheckedPayload'),payload=submission.localCheckedPayload;return,end
 s=submission.store;
 [clean,~]=site_benchmark_merge([],s);
 record=struct('basin','','metric','','train',0,'evaluation',0, ...

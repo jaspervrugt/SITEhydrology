@@ -1,13 +1,16 @@
-name: Check local references and publish benchmark contributions
+name: Owner-only initial benchmark verification
 on:
-  pull_request_target:
-    types: [opened, synchronize, reopened]
-    paths: ['benchmarks/inbox/*.json']
+  workflow_dispatch:
+    inputs:
+      contribution_pr:
+        description: 'Owner-reviewed initial contribution PR number'
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
   verify:
-    # Administrator-controlled publication switch.
+    # Administrator-controlled switch stays off throughout the pilot.
     if: vars.SITE_BENCHMARK_PUBLISH == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 180
@@ -15,22 +18,51 @@ jobs:
       # Never check out, import or run contributor source or workflows.
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - name: Validate and fetch numerical JSON only
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ inputs.contribution_pr }}
           CANDIDATE_DIR: verified-candidates
         run: python3 benchmarks/check_pull_request.py
-      - name: Check local evidence against the shared reference snapshot
+      - name: Unpack administrator-pinned scientific core
+        run: python3 benchmarks/unpack_core.py benchmarks/core/scientific-core.zip --pin benchmarks/core/core-pin.json --destination worker-work
+      - name: Reuse checksum-validated official input files
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: worker-data
+          key: site-verified-data-${{ hashFiles('benchmarks/core/worker-data-pin.json') }}-${{ github.run_id }}
+          restore-keys: site-verified-data-${{ hashFiles('benchmarks/core/worker-data-pin.json') }}-
+      # prepare_worker_data verifies every reused file against its pin.
+      - name: Fetch checksum-pinned official data
+        run: |
+          for candidate in verified-candidates/*.json; do
+            python3 benchmarks/prepare_worker_data.py worker-data --pins benchmarks/core/worker-data-pin.json --candidate "$candidate"
+          done
+      - uses: matlab-actions/setup-matlab@aa8bbc7b76daa63c5d456d1430cbd6cb5b626ab4
+        with:
+          release: R2026a
+      - name: Independently verify all submitted scores
+        uses: matlab-actions/run-command@37b454c384483087929a3d652be474ba585a9659
         env:
-          TRUSTED_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: python3 benchmarks/local_reference_receipt.py
+          TRUSTED_BASE_SHA: ${{ github.sha }}
+        with:
+          command: >-
+            addpath(fullfile(pwd,'benchmarks','worker'));
+            core=fullfile(pwd,'worker-work','SAGEhydrology');
+            addpath(fullfile(core,'models'));
+            mex('-setup','C++'); compile_crr_model_mex;
+            pin=jsondecode(fileread(fullfile(pwd,'benchmarks','core','core-pin.json')));
+            revision=[getenv('TRUSTED_BASE_SHA') ':' pin.sha256];
+            site_benchmark_worker_batch(core,fullfile(pwd,'worker-data'),
+            fullfile(pwd,'verified-candidates'),fullfile(pwd,'benchmarks','profiles.json'),
+            fullfile(pwd,'benchmarks','worker','worker-config.json'),
+            fullfile(pwd,'verified-receipts'),revision);
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: local-reference-checked-benchmarks
+          name: independently-verified-benchmarks
           path: |
             verified-candidates/
             verified-receipts/
@@ -46,18 +78,18 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
-      # Only the sibling trusted reference-check job can supply this artifact.
+      # Only the sibling trusted verifier job can supply this artifact.
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: local-reference-checked-benchmarks
+          name: independently-verified-benchmarks
           path: .
       - name: Prepare improvements against the newest shared results
         id: prepare
         env:
           GH_TOKEN: ${{ github.token }}
-          TRUSTED_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          TRUSTED_BASE_SHA: ${{ github.sha }}
         run: python3 benchmarks/publish_worker_batch.py --phase prepare
       - name: Unpack pinned export dependencies
         if: steps.prepare.outputs.changed == 'true'

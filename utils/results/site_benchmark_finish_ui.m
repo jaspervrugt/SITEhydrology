@@ -15,6 +15,10 @@ assert(isscalar(fig) && isgraphics(fig,'figure'),'SITE:BenchmarkGUIRequired', ..
     'Benchmark synchronization requires the SITE GUI.');
 if ~isfield(output,'store') || isempty(output.store), return, end
 s=output.store;
+if isfield(output,'referenceInputs')
+    setappdata(fig,'SITEBenchmarkReferenceInputs',output.referenceInputs);
+    referenceCleanup=onCleanup(@()clearReferenceInputs(fig)); %#ok<NASGU>
+end
 if ~isfield(s,'configuration') || s.configuration.changed
     status.message='Shared benchmarks: nondefault model configuration remains local.';
     logFcn(status.message); return
@@ -60,6 +64,7 @@ if ~isfolder(queue),mkdir(queue);end
 destination=fullfile(queue,[name '_submission.mat']);
 submission=struct('schema',1,'contract',contract,'store',s, ...
     'created',datetime('now','TimeZone','UTC'),'origin','SITE_ui');
+submission.runConfig=C;if isfield(submission.runConfig,'ui'),submission.runConfig=rmfield(submission.runConfig,'ui');end
 % Build outside synchronized folders to avoid Dropbox locking the MAT file.
 temp=[tempname '.mat'];
 cleanup=onCleanup(@()deleteTemp(temp));
@@ -77,4 +82,8 @@ end
 
 function deleteTemp(path)
 if isfile(path),delete(path);end
+end
+
+function clearReferenceInputs(fig)
+if isgraphics(fig)&&isappdata(fig,'SITEBenchmarkReferenceInputs'),rmappdata(fig,'SITEBenchmarkReferenceInputs');end
 end

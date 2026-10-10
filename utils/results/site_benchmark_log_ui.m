@@ -15,7 +15,7 @@ message=strrep(message,'Shared benchmarks: proposed update submitted: ', ...
 lines=regexp(message,'(?<=[.])\s+|;\s+','split');
 for k=1:numel(lines)
     if ~isempty(strtrim(lines{k}))
-        logFcn(['     ' strtrim(lines{k})]);
+        logFcn(['    ' strtrim(lines{k})]);
     end
 end
 end

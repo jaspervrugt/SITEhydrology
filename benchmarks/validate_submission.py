@@ -1,7 +1,7 @@
 """Validate an untrusted JSON proposal; never execute or publish its contents.
 
 Passing this check does not verify model scores or compiled-app provenance.
-Only trusted, independent numerical verification can authorize publication.
+Publication additionally requires a trusted reference-consistency receipt.
 """
 import argparse
 import hashlib
@@ -55,7 +55,8 @@ def vector(value):
 def validate(payload, manifest):
     if payload.get("schema") != 1:
         raise ValueError("Unsupported submission schema")
-    if set(payload) != {"schema", "origin", "contract", "records", "profile"}:
+    fields={"schema", "origin", "contract", "records", "profile"}
+    if set(payload) not in (fields,fields|{'localReferenceCheck'}):
         raise ValueError("Unexpected submission fields")
     approved_profiles = manifest["profiles"]
     if isinstance(approved_profiles, dict):

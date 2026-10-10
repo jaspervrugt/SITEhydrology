@@ -1,0 +1,17 @@
+name: Test local reference contributions
+on:
+  push:
+    branches: [site-local-reference-verification]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Test reference evidence, ranges and atomic publication
+        working-directory: benchmarks
+        run: python3 -m unittest test_local_reference_receipt test_validate_submission test_publish_verified test_parameter_ranges test_atomic_results test_delivery test_public_models
