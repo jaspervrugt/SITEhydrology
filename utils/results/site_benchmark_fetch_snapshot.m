@@ -1,6 +1,6 @@
-function snapshot=site_benchmark_fetch_snapshot(profile)
+function [snapshot,snapshotHash]=site_benchmark_fetch_snapshot(profile)
 % Read an immutable public snapshot, validating its location and checksum.
-snapshot=[];
+snapshot=[];snapshotHash='';
 assert(~isempty(regexp(profile,'^[a-z][a-z0-9_]{0,99}$','once')), ...
     'SITE:BenchmarkProfile','Invalid profile identifier.');
 raw='https://raw.githubusercontent.com/jaspervrugt/SITEhydrology/main/benchmarks/';
@@ -31,6 +31,7 @@ bytes=fread(fid,Inf,'*uint8').';fclose(fid);
 md=java.security.MessageDigest.getInstance('SHA-256');
 hash=lower(reshape(dec2hex(typecast(md.digest(bytes),'uint8'),2).',1,[]));
 assert(strcmp(hash,entry.sha256),'SITE:BenchmarkChecksum','Snapshot checksum differs.');
+snapshotHash=hash;
 snapshot=jsondecode(native2unicode(bytes,'UTF-8'));
 assert(snapshot.schema==1 && strcmp(snapshot.profile,profile), ...
     'SITE:BenchmarkProfile','Snapshot profile differs.');

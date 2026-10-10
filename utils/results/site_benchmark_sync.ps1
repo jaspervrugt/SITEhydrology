@@ -128,6 +128,7 @@ function Submit-Payload($Payload,[string]$Token) {
     foreach($p in @($manifest.profiles)){if($p.enabled -and (Get-ProfileJson $p.contract) -ceq (Get-ProfileJson $Payload.contract)){$approved=$p;break}}
     if($null -eq $approved){return @{state='unapproved'}}
     if($approved.id -notmatch '^[a-z][a-z0-9_]{0,99}$'){throw 'Invalid profile ID'}
+    if($null -eq $Payload.localReferenceCheck -or $Payload.localReferenceCheck.mode -cne 'local_reference'){return @{state='reference_required'}}
     $Payload.contract=$approved.contract
     $snapshot=Get-Snapshot $approved.id
     $Payload.records=Select-Improvements $Payload $snapshot $approved

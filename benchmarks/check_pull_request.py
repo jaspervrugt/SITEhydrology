@@ -50,4 +50,4 @@ for file in files:
         directory.mkdir(parents=True, exist_ok=True)
         (directory / (digest + '.json')).write_bytes(raw)
     print(json.dumps(report))
-print("Structural validation only. Independent score verification is still required.")
+print("Structural validation only. A trusted consistency-check receipt is still required.")

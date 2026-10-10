@@ -60,11 +60,13 @@ def _publish(candidate_file, manifest_file, receipt_file, root, verifier_revisio
             and receipt.get("checked") == validation["records"]
             and receipt.get("verifier_revision") == verifier_revision):
         raise ValueError("Trusted numerical verification does not cover this candidate")
+    verification_mode=receipt.get('verification_mode','independent')
+    if verification_mode not in {'independent','local_reference'}:raise ValueError('Unknown verification mode')
     verified_records = receipt.get("verified_records")
     if isinstance(verified_records, dict):
         verified_records = [verified_records]
     if not isinstance(verified_records, list) or len(verified_records) != validation["records"]:
-        raise ValueError("Missing independently recomputed records")
+        raise ValueError("Missing checked records")
     verified_payload = dict(payload, records=verified_records)
     validate(verified_payload, manifest)
     submitted_records = payload["records"]
@@ -97,6 +99,7 @@ def _publish(candidate_file, manifest_file, receipt_file, root, verifier_revisio
     else:
         snapshot = {"schema": 1, "profile": profile_id,
                     "contract": payload["contract"], "records": []}
+    snapshot['verificationMode']=verification_mode
     metrics = profile["contract"]["metrics"]
     directions = profile["contract"]["maximize"]
     if isinstance(directions, bool):
