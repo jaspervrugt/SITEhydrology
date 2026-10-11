@@ -1,6 +1,7 @@
 function test_submission_cleanup()
 core=fileparts(fileparts(fileparts(mfilename('fullpath'))));site=fullfile(fileparts(core),'SITEhydrology');addpath(genpath(fullfile(site,'utils')));
-payload=jsondecode(fileread(fullfile(core,'.codex-work','site-parameter-ranges','benchmarks','tests','hbv_candidate.json')));payload.records=payload.records(1);
+fixture=fullfile(core,'benchmarks','tests','hbv_candidate.json');if ~isfile(fixture),fixture=fullfile(core,'.codex-work','site-parameter-ranges','benchmarks','tests','hbv_candidate.json');end
+payload=jsondecode(fileread(fixture));payload.records=payload.records(1);
 approved=struct('id',payload.profile,'contract',payload.contract,'basinIds',string(payload.records.basin));snapshot=struct('profile',payload.profile,'contract',payload.contract,'records',payload.records);
 assert(site_benchmark_submission_covered(payload,snapshot,approved));
 metric=find(string(payload.contract.metrics)==string(payload.records.metric));direction=2*double(payload.contract.maximize(metric))-1;
