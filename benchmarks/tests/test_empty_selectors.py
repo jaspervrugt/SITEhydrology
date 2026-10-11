@@ -1,4 +1,7 @@
-import copy,unittest
+import copy,unittest,sys
+from pathlib import Path
+HERE=Path(__file__).resolve().parent
+sys.path.insert(0,str(HERE.parent if HERE.name=='tests' else HERE/'lib'))
 from local_reference_receipt import contract_identity
 class EmptySelectors(unittest.TestCase):
  def test_unused_selectors(self):
