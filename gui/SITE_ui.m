@@ -8426,6 +8426,8 @@ function SITE_ui(varargin)
             s = char(s);
         end
 
+        s = site_log_context(s,S.runtime.isRunning);
+
         % Verification percentages replace one row, also when Log is hidden.
         progress = regexp(strtrim(s), ...
             '^Shared benchmarks: checking results \.\.\. \[(\d+)% Done\]$', ...
