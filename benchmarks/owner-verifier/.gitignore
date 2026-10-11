@@ -1,0 +1,4 @@
+owner-config.json
+state/
+__pycache__/
+api-request.json

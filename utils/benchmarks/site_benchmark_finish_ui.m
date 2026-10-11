@@ -45,8 +45,12 @@ try
         end
     end
     if ~approved
-        status.message='Shared benchmarks: no enabled default profile matches this experiment; results remain local.';
-        logFcn(status.message);return
+        try
+            site_benchmark_initial_defaults(contract,C.SAGEhydro,'');
+        catch
+            status.message='Shared benchmarks: changed or unsupported defaults remain local.';logFcn(status.message);return
+        end
+        logFcn('Shared benchmarks: first reference requires verification on the owner computer.');
     end
 catch
     % An offline completion must preserve a recoverable contribution.
