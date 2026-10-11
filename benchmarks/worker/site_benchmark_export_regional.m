@@ -22,7 +22,7 @@ s=site_result_store('load',scratch,contract.model,contract.resolution,ids,mdl,1,
     refs,refs,refs,refs,refs,refs,C.region,C.meteo,C.prd);
 assert(site_benchmark_contract_equal(site_benchmark_contract(s,C),contract));
 for k=1:numel(snapshot.records)
-    r=snapshot.records(k);row=find(ids==string(r.basin));col=find(string(s.metricNames)==string(r.metric));
+    r=recordAt(snapshot.records,k);row=find(ids==string(r.basin));col=find(string(s.metricNames)==string(r.metric));
     assert(isscalar(row)&&isscalar(col)&&isfinite(r.train));
     s.train(row,col)=r.train;if isempty(r.evaluation),s.eval(row,col)=NaN;else,s.eval(row,col)=r.evaluation;end
     s.theta(row,:,col)=r.theta(:).';s.nTheta(row,:,col)=r.normalized(:).';
@@ -48,9 +48,24 @@ if isfile(previous)
     fields={'runCount','improvementCount','fdcD0t','fdcD0e','fdcD0pt','fdcD0pe','fdcD0logpt','fdcD0logpe'};
     for j=1:numel(fields),key=fields{j};if isfield(old,key),s.(key)=old.(key)(rows,:);end,end
     for k=1:numel(snapshot.records)
-        r=snapshot.records(k);row=find(ids==string(r.basin));col=find(string(s.metricNames)==string(r.metric));v=old.train(rows(row),col);
+        r=recordAt(snapshot.records,k);row=find(ids==string(r.basin));col=find(string(s.metricNames)==string(r.metric));v=old.train(rows(row),col);
         better=isfinite(v) && ((s.maximize(col)&&r.train>v)||(~s.maximize(col)&&r.train<v));
         if better,s.improvementCount(row,col)=s.improvementCount(row,col)+1;end
+    end
+end
+% Keep winning-fit metadata from verified records; legacy rows retain history.
+if ~isfield(s,'contributor'),s.contributor=repmat("Unknown",size(s.train));end
+if ~isfield(s,'platform'),s.platform=repmat("Unknown",size(s.train));end
+for k=1:numel(snapshot.records)
+    r=recordAt(snapshot.records,k);row=find(ids==string(r.basin));col=find(string(s.metricNames)==string(r.metric));
+    for key={'runCount','improvementCount'}
+        field=key{1};if isfield(r,field)&&~isempty(r.(field)),s.(field)(row,col)=r.(field);end
+    end
+    for key={'contributor','platform'}
+        field=key{1};value='Unknown';
+        if isfield(profile,'legacyAttribution')&&isfield(profile.legacyAttribution,field),value=profile.legacyAttribution.(field);end
+        if isfield(r,field)&&~isempty(r.(field)),value=r.(field);end
+        s.(field)(row,col)=string(value);
     end
 end
 relative=strrep(s.fileSummary,[outputRoot filesep],'');previous=fullfile(outputRoot,'inputs',relative);
@@ -62,4 +77,9 @@ for k=1:numel(ranges)
 end
 site_result_store('save',s);
 files={s.fileMat,s.fileBook,s.fileSummary,s.rangeFile};files=strrep(files,[outputRoot filesep],'');files=strrep(files,filesep,'/');
+end
+
+function r=recordAt(records,k)
+if iscell(records),r=records{k};else,r=records(k);end
+assert(isstruct(r)&&isscalar(r),'SITE:ExportRecord','Invalid verified record.');
 end
