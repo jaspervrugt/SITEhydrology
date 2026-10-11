@@ -27,6 +27,7 @@ else
 end
 stage='reading local pending results';
 try
+    if site_benchmark_cleanup_ui(pendingFile,rawLogFcn),result.state='current';return,end
     loaded=load(pendingFile,'submission');
     if isfield(loaded.submission,'localCheckedPayload'),loaded.submission=rmfield(loaded.submission,'localCheckedPayload');end
     if isfield(loaded.submission,'initialEnvelope'),loaded.submission=rmfield(loaded.submission,'initialEnvelope');end
