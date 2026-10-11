@@ -206,6 +206,25 @@ function Resolve-Credential($Config) {
     }
     return $auth.access_token
 }
+function Test-PublishedPayload($Payload) {
+    if($Payload.kind -ceq 'owner_initial_reference'){$Payload=$Payload.payload}
+    if(@($Payload.records).Count -eq 0){return $false}
+    $manifest=Get-ContentJson 'benchmarks/profiles.json';$approved=$null
+    foreach($p in @($manifest.profiles)){if($p.enabled -and (Get-ProfileJson $p.contract) -ceq (Get-ProfileJson $Payload.contract)){$approved=$p;break}}
+    if($null -eq $approved){return $false}
+    $snapshot=Get-Snapshot $approved.id
+    if($null -eq $snapshot -or $snapshot.profile -cne $approved.id -or (Get-ProfileJson $snapshot.contract) -cne (Get-ProfileJson $Payload.contract)){return $false}
+    foreach($r in @($Payload.records)){
+        if(@($approved.basinIds) -cnotcontains [string]$r.basin){return $false}
+        $hit=@($snapshot.records | Where-Object {$_.basin -ceq $r.basin -and $_.metric -ceq $r.metric})
+        $index=[Array]::IndexOf(@($approved.contract.metrics),$r.metric)
+        if($hit.Count -ne 1 -or $index -lt 0){return $false}
+        $old=[double]$hit[0].train;$value=[double]$r.train
+        if([double]::IsNaN($old) -or [double]::IsInfinity($old) -or [double]::IsNaN($value) -or [double]::IsInfinity($value)){return $false}
+        if(($approved.contract.maximize[$index] -and $old -lt $value) -or (!$approved.contract.maximize[$index] -and $old -gt $value)){return $false}
+    }
+    return $true
+}
 function Invoke-Sync {
     $config=Join-Path $StateRoot 'site_benchmark_github.json'
     if(!(Test-Path -LiteralPath $config)){return}
@@ -224,7 +243,11 @@ function Invoke-Sync {
             $statusFile=Join-Path $StateRoot ('status/'+$file.Name)
             if(Test-Path -LiteralPath $statusFile){
                 $old=[IO.File]::ReadAllText($statusFile) | ConvertFrom-Json
-                if($old.digest -ceq $digest -and $old.state -in @('submitted','current')){continue}
+                if($old.digest -ceq $digest -and $old.state -in @('submitted','current')){
+                    $saved=$Utf8.GetString($bytes) | ConvertFrom-Json
+                    if((Test-PublishedPayload $saved) -and (Get-Digest ([IO.File]::ReadAllBytes($file.FullName))) -ceq $digest){Remove-Item -LiteralPath $file.FullName}
+                    continue
+                }
             }
             $payload=$Utf8.GetString($bytes) | ConvertFrom-Json
             if($payload.schema -ne 1 -or ($payload.origin -cne 'SITE_compiled_GUI' -and $payload.kind -cne 'owner_initial_reference')){throw 'Invalid contribution'}
