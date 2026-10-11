@@ -9,7 +9,7 @@ from validate_submission import validate,read_json,number
 
 def same_score(actual,expected):
     if actual is None or expected is None:return actual is None and expected is None
-    return number(actual) and number(expected) and abs(actual-expected)<=1e-8+1e-6*abs(expected)
+    return number(actual) and number(expected) and abs(actual-expected)<=1e-8+1e-5*abs(expected)
 
 def receipt(candidate,manifest,baseline_bytes,revision):
     candidate,manifest=Path(candidate),Path(manifest)

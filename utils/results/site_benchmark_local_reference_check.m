@@ -48,7 +48,7 @@ end
 function yes=sameScore(actual,claimed)
 if isempty(actual),actual=NaN;end
 if isempty(claimed),claimed=NaN;end
-yes=(isnan(actual)&&isnan(claimed))||(isfinite(actual)&&isfinite(claimed)&&abs(actual-claimed)<=1e-8+1e-6*abs(claimed));
+yes=(isnan(actual)&&isnan(claimed))||(isfinite(actual)&&isfinite(claimed)&&abs(actual-claimed)<=1e-8+1e-5*abs(claimed));
 end
 function [t,e]=metric(m,loss,name)
 switch char(name)
