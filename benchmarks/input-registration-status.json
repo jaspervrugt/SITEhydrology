@@ -84,9 +84,9 @@
   {
     "region": "CAMELS_SPAT",
     "resolution": "hourly",
-    "complete": false,
-    "registeredBasins": 0,
-    "eligibleBasins": 0,
+    "complete": true,
+    "registeredBasins": 1426,
+    "eligibleBasins": 1401,
     "errors": []
   },
   {

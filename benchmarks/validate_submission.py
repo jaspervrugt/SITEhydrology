@@ -83,8 +83,12 @@ def validate(payload, manifest):
                "optimizedLoss", "optimizer", "runtime", "updated"}
     seen = set()
     for r in records:
-        if set(r) not in (allowed, allowed | {'parameterRange'}):
+        optional = {'parameterRange', 'runCount', 'improvementCount'}
+        if not allowed <= set(r) or not set(r) <= allowed | optional:
             raise ValueError("Unexpected record fields")
+        for counter in ('runCount','improvementCount'):
+            if counter in r and (not number(r[counter]) or r[counter] < 0 or r[counter] != int(r[counter])):
+                raise ValueError('Invalid result counter')
         low, high = bounds_low, bounds_high
         if 'parameterRange' in r:
             pr = r['parameterRange']

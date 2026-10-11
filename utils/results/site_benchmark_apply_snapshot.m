@@ -28,6 +28,10 @@ for k=1:numel(snapshot.records)
     candidate.optimizedLoss(row,j)=string(r.optimizedLoss);
     candidate.optimizer(row,j)=r.optimizer;
     candidate.runtime(row,j)=r.runtime;
+    for counter={'runCount','improvementCount'}
+        key=counter{1};candidate.(key)(row,j)=store.(key)(row,j);
+        if isfield(r,key),candidate.(key)(row,j)=r.(key);end
+    end
     candidate.updated(row,j)=datetime(r.updated,'InputFormat','yyyy-MM-dd''T''HH:mm:ss');
 end
 [merged,report]=site_benchmark_merge(store,candidate);
