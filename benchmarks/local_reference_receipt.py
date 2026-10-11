@@ -50,6 +50,17 @@ def receipt(candidate,manifest,baseline_bytes,revision):
         profiles=approved['profiles'];profiles=[profiles] if isinstance(profiles,dict) else profiles
         registered=next(p for p in profiles if p['id']==payload['profile'])
         trusted=registered.get('inputFingerprints')
+        if not trusted:
+            catalog_path=manifest.parent/'inputs.json'
+            if not catalog_path.is_file():raise ValueError('Trusted dataset checksum catalog unavailable')
+            catalog=read_json(catalog_path)
+            if catalog.get('schema')!=1 or catalog.get('algorithm')!='sha256-input-v1':raise ValueError('Unsupported dataset checksum catalog')
+            identity={k:payload['contract'][k] for k in ('resolution','provenance','period')}
+            catalog_entries=catalog.get('entries',[])
+            catalog_entries=[catalog_entries] if isinstance(catalog_entries,dict) else catalog_entries
+            for entry in catalog_entries:
+                if entry.get('complete') and entry.get('identity')==identity:
+                    trusted=entry.get('inputFingerprints');break
         fingerprints=proof['inputFingerprints']
         if not trusted or fingerprints.get('schema')!=1 or fingerprints.get('algorithm')!='sha256-input-v1':raise ValueError('Trusted input fingerprints unavailable')
         hashes=trusted['records'];hashes=[hashes] if isinstance(hashes,dict) else hashes

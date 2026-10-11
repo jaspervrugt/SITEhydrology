@@ -51,7 +51,7 @@ try
     payload.profile=profile;payload.contract=approved.contract;
     stage='downloading current verified benchmark snapshot';
     [snapshot,snapshotHash]=site_benchmark_fetch_snapshot(profile);
-    if ~isempty(snapshot)&&isfield(approved,'inputFingerprints'),snapshot.inputFingerprints=approved.inputFingerprints;end
+    snapshot=site_benchmark_attach_input_checksums(snapshot,approved);
     payload=site_benchmark_filter_records(payload,snapshot,approved);
     if isempty(payload.records)
         logFcn('Shared benchmarks: current global results already match or exceed these local fits.');

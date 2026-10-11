@@ -41,7 +41,7 @@ try
     end
     [snapshot,snapshotHash]=site_benchmark_fetch_snapshot(profile);
     if isempty(snapshot),return,end
-    if ~isempty(snapshot)&&isfield(p,'inputFingerprints'),snapshot.inputFingerprints=p.inputFingerprints;end
+    snapshot=site_benchmark_attach_input_checksums(snapshot,p);
     assert(site_benchmark_profile_equal(snapshot.contract,contract), ...
         'SITE:BenchmarkMismatch','Snapshot experiment differs.');
     [merged,report]=site_benchmark_apply_snapshot(store,snapshot);
