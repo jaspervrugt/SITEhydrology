@@ -51,6 +51,7 @@ try
     payload.profile=profile;payload.contract=approved.contract;
     stage='downloading current verified benchmark snapshot';
     [snapshot,snapshotHash]=site_benchmark_fetch_snapshot(profile);
+    if ~isempty(snapshot)&&isfield(approved,'inputFingerprints'),snapshot.inputFingerprints=approved.inputFingerprints;end
     payload=site_benchmark_filter_records(payload,snapshot,approved);
     if isempty(payload.records)
         logFcn('Shared benchmarks: current global results already match or exceed these local fits.');
@@ -65,9 +66,10 @@ try
         logFcn('Shared benchmarks: this older contribution needs a short run in the updated SITE before its local reference check.');return
     end
     inputs=[];if isappdata(fig,'SITEBenchmarkReferenceInputs'),inputs=getappdata(fig,'SITEBenchmarkReferenceInputs');end
-    logFcn('Shared benchmarks: checking GitHub reference fits against local data.');
+    logFcn('Shared benchmarks: checking input fingerprints, reference fits and proposed improvements.');
     loader=site_benchmark_local_context(loaded.submission.runConfig,unique(string({payload.records.basin})),inputs);
-    [payload,check]=site_benchmark_local_reference_check(payload,snapshot,snapshotHash,loader,logFcn);
+    pool=site_benchmark_reference_pool(loaded.submission.runConfig,logFcn);
+    [payload,check]=site_benchmark_local_reference_check(payload,snapshot,snapshotHash,loader,logFcn,pool);
     logFcn(sprintf('Shared benchmarks: reference check passed for %d basins; %d failed; %d need an initial reference.',check.passed,check.failed,check.unseeded));
     if isempty(payload.records),result.state='reference_required';return,end
     loaded.submission.localCheckedPayload=payload;submission=loaded.submission;

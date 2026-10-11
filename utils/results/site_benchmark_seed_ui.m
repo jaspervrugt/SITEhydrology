@@ -1,8 +1,10 @@
-function store=site_benchmark_seed_ui(fig,store,C,logFcn)
+function store=site_benchmark_seed_ui(fig,store,C,logFcn,inputs)
+if nargin<5,inputs=[];end
 rawLogFcn=logFcn; logFcn=@(message)site_benchmark_log_ui(rawLogFcn,message);
 %SITE_BENCHMARK_SEED_UI Download verified defaults before GUI training.
 % Network/compatibility failures leave existing local results untouched.
 if ~isdeployed || ~isscalar(fig) || ~isgraphics(fig,'figure'),return,end
+if isappdata(fig,'SITEBenchmarkPreflightBlocked'),rmappdata(fig,'SITEBenchmarkPreflightBlocked');end
 if ~isfield(store,'configuration') || store.configuration.changed,return,end
 configFile=fullfile(fileparts(mfilename('fullpath')),'site_benchmark_github.json');
 cfg=jsondecode(fileread(configFile));
@@ -37,8 +39,9 @@ try
         logFcn('Shared benchmarks: download declined; existing local results retained. End-of-run contribution remains enabled.');
         return
     end
-    snapshot=site_benchmark_fetch_snapshot(profile);
+    [snapshot,snapshotHash]=site_benchmark_fetch_snapshot(profile);
     if isempty(snapshot),return,end
+    if ~isempty(snapshot)&&isfield(p,'inputFingerprints'),snapshot.inputFingerprints=p.inputFingerprints;end
     assert(site_benchmark_profile_equal(snapshot.contract,contract), ...
         'SITE:BenchmarkMismatch','Snapshot experiment differs.');
     [merged,report]=site_benchmark_apply_snapshot(store,snapshot);
@@ -49,8 +52,9 @@ try
         site_result_store('save',merged);
         store=merged;
     end
-    logFcn(sprintf('Shared benchmarks: downloaded latest verified results; %d local improvements.', ...
+    logFcn(sprintf('Shared benchmarks: downloaded latest verified results; %d entries improved using downloaded GitHub results.', ...
         report.improvements));
+    site_benchmark_preflight_ui(fig,store,C,snapshot,snapshotHash,inputs,logFcn);
 catch
     logFcn('Shared benchmarks: download unavailable or incompatible; continuing with local results.');
 end
