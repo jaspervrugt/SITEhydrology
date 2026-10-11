@@ -1,6 +1,7 @@
 function snapshot=site_benchmark_attach_input_checksums(snapshot,profile,catalog)
 % Attach owner checksums by dataset/resolution/forcing/period, not model.
 if isempty(snapshot),return,end
+if isfield(profile,'legacyAttribution'),snapshot.legacyAttribution=profile.legacyAttribution;end
 if isfield(profile,'inputFingerprints')
  snapshot.inputFingerprints=profile.inputFingerprints;return
 end

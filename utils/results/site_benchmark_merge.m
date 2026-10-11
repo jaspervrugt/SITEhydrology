@@ -53,16 +53,34 @@ end
 [found,rows]=ismember(string(candidate.ids),string(globalStore.ids));
 assert(all(found),'SITE:BenchmarkUnknownBasin','Unknown basin in submission.');
 merged=globalStore;
-report=struct('improvements',0,'newBasins',0,'firstFile',false);
+report=struct('improvements',0,'newBasins',0,'firstFile',false,'metadataUpdates',0);
 valid=validCells(candidate);
 paired={'train','eval','optimizedLoss','optimizer','runtime','updated', ...
     'runCount','improvementCount'};
+paired=[paired intersect({'contributor','platform'},fieldnames(candidate).','stable')];
+for key=intersect({'contributor','platform'},fieldnames(candidate).','stable')
+ if ~isfield(merged,key{1}),merged.(key{1})=repmat("Unknown",size(merged.train));end
+end
+paired=[paired intersect({'contributor','platform'},fieldnames(candidate).','stable')];
+for key=intersect({'contributor','platform'},fieldnames(candidate).','stable')
+ if ~isfield(merged,key{1}),merged.(key{1})=repmat("Unknown",size(merged.train));end
+end
 for k=1:numel(rows)
     r=rows(k);
     for j=1:numel(candidate.metricNames)
         a=candidate.train(k,j); b=merged.train(r,j);
         better=~isfinite(b) || (candidate.maximize(j) && a>b) ...
             || (~candidate.maximize(j) && a<b);
+        if valid(k,j) && ~better && isequaln(candidate.train(k,j),merged.train(r,j)) ...
+                && isequaln(candidate.eval(k,j),merged.eval(r,j)) ...
+                && isequaln(candidate.theta(k,:,j),merged.theta(r,:,j))
+            for key=intersect({'contributor','platform'},fieldnames(candidate).','stable')
+                name=key{1};oldValue=string(merged.(name)(r,j));newValue=string(candidate.(name)(k,j));
+                if (oldValue=="Unknown"||strlength(oldValue)==0) && newValue~="Unknown" && strlength(newValue)>0
+                    merged.(name)(r,j)=newValue;report.metadataUpdates=report.metadataUpdates+1;
+                end
+            end
+        end
         if ~valid(k,j) || ~better, continue, end
         for f=1:numel(paired)
             key=paired{f}; merged.(key)(r,j)=candidate.(key)(k,j);

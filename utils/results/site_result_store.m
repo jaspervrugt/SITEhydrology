@@ -142,13 +142,15 @@ store.updated = NaT(K,nMetrics);
 store.rangeID = nan(K,nMetrics);
 store.runCount = zeros(K,nMetrics);
 store.improvementCount = zeros(K,nMetrics);
+store.contributor = repmat("Unknown",K,nMetrics);
+store.platform = repmat("Unknown",K,nMetrics);
 
 if isfile(store.fileMat)
     previous = load(store.fileMat,'store');
     baseMismatch = ~isfield(previous,'store') ...
             || ~isfield(previous.store,'provenance') ...
             || ~isfield(previous.store,'ids') ...
-            || ~isequaln(previous.store.provenance,store.provenance) ...
+            || ~local_same_provenance(previous.store.provenance,store.provenance) ...
             || (isfield(previous.store,'periodID') ...
             && previous.store.periodID ~= store.periodID) ...
             || ~local_same_basin_set(previous.store.ids,store.ids);
@@ -315,6 +317,20 @@ for j = 1:numel(store.metricNames)
         store.optimizedLoss(k,j) = string(row{optimizedLoss});
         store.optimizer(k,j) = local_import_number(row{optimizer});
         store.runtime(k,j) = local_import_number(row{runtime});
+        for key={'Contributor','Platform'}
+            column=find(strcmpi(headings,key{1}),1);
+            if ~isempty(column) && ~ismissing(string(row{column}))
+                name=lower(key{1});store.(name)(k,j)=string(row{column});
+            end
+        end
+        for key={'RunCount','ImprovementCount'}
+            column=find(strcmpi(headings,key{1}),1);
+            if ~isempty(column)
+                value=local_import_number(row{column});
+                if ~isfinite(value)||value<0||value~=fix(value),error('SITE:WorkbookRunCountInvalid','Invalid %s in sheet %s.',key{1},sheet);end
+                name=key{1};name(1)=lower(name(1));store.(name)(k,j)=value;
+            end
+        end
         if isdatetime(row{updated})
             store.updated(k,j) = row{updated};
         end
@@ -559,6 +575,11 @@ for j = 1:numel(store.metricNames)
         store.runtime(k,j) = result.runtime;
         store.updated(k,j) = datetime('now');
         store.rangeID(k,j) = store.currentRangeID;
+        if ~isfield(store,'contributor'),store.contributor=repmat("Unknown",size(store.train));end
+        if ~isfield(store,'platform'),store.platform=repmat("Unknown",size(store.train));end
+        store.contributor(k,j)="Unknown";
+        if isappdata(0,'SITEBenchmarkContributor'),store.contributor(k,j)=string(getappdata(0,'SITEBenchmarkContributor'));end
+        if ispc,store.platform(k,j)="Windows";elseif ismac,store.platform(k,j)="macOS";elseif isunix,store.platform(k,j)="Linux";else,store.platform(k,j)="Unknown";end
     end
 end
 end
@@ -574,7 +595,7 @@ function old = local_align_basin_rows(old,newIDs)
 [matched,order]=ismember(string(newIDs(:)),string(old.ids(:)));
 assert(all(matched),'SITE:CheckpointMismatch','Stored basin IDs differ.');
 fields={'train','eval','optimizedLoss','optimizer','runtime','updated', ...
-    'rangeID','nTheta','theta','runCount','improvementCount'};
+    'rangeID','nTheta','theta','runCount','improvementCount','contributor','platform'};
 for k=1:numel(fields)
     name=fields{k};
     if isfield(old,name)
@@ -595,7 +616,7 @@ else
 end
 newNames = string(store.metricNames);
 fields2 = {'train','eval','optimizedLoss','optimizer','runtime','updated'};
-fields2{end + 1} = 'rangeID';
+fields2 = [fields2 {'rangeID','contributor','platform'}];
 fields3 = {'nTheta','theta'};
 for oldIndex = 1:numel(oldNames)
     newIndex = find(strcmpi(newNames,oldNames(oldIndex)),1);
@@ -705,6 +726,11 @@ for j = 1:numel(store.metricNames)
     T.Optimizer = store.optimizer(:,j);
     T.RuntimeSeconds = store.runtime(:,j);
     T.Updated = store.updated(:,j);
+    T.RunCount = store.runCount(:,j);
+    T.ImprovementCount = store.improvementCount(:,j);
+    T.Contributor = repmat("Unknown",K,1);T.Platform = repmat("Unknown",K,1);
+    if isfield(store,'contributor'),T.Contributor=store.contributor(:,j);end
+    if isfield(store,'platform'),T.Platform=store.platform(:,j);end
 
     % writecell permits a genuinely blank separator-column heading;
     % MATLAB tables themselves require every variable to have a name.
@@ -833,3 +859,12 @@ if isfield(store,'configuration')
     information=[information;store.configuration.rows];
 end
 end
+
+
+function same=local_same_provenance(a,b)
+% Descriptive GUI labels do not identify numerical forcing products.
+if isfield(a,'source'),a=rmfield(a,'source');end
+if isfield(b,'source'),b=rmfield(b,'source');end
+same=isequaln(a,b);
+end
+

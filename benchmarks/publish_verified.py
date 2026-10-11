@@ -110,6 +110,9 @@ def _publish(candidate_file, manifest_file, receipt_file, root, verifier_revisio
     if isinstance(ranges,dict):ranges=[ranges]
     for old in snapshot['records']:
         if 'parameterRange' not in old:old['parameterRange']=dict(defaults)
+        legacy=profile.get('legacyAttribution',{})
+        for field in ('contributor','platform'):
+            if field not in old:old[field]=legacy.get(field,'Unknown')
     by_key = {(r["basin"], r["metric"]): r for r in snapshot["records"]}
     records = verified_records
     if isinstance(records, dict):
