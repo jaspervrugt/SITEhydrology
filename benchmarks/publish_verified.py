@@ -31,6 +31,16 @@ def atomic_write(path, data):
             os.unlink(name)
 
 
+def contract_identity(contract):
+    # MATLAB represents unused product selectors as [] after JSON decoding.
+    # Historical snapshots encode those same two unused fields as null.
+    result=dict(contract)
+    if isinstance(result.get('provenance'),dict):
+        result['provenance']=dict(result['provenance'])
+        for key in ('precip','temp'):
+            if result['provenance'].get(key)==[]:result['provenance'][key]=None
+    return result
+
 def publish(candidate_file, manifest_file, receipt_file, root, verifier_revision):
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
@@ -94,7 +104,7 @@ def _publish(candidate_file, manifest_file, receipt_file, root, verifier_revisio
         if hashlib.sha256(raw).hexdigest() != previous["sha256"]:
             raise ValueError("Existing benchmark checksum mismatch")
         snapshot = json.loads(raw)
-        if snapshot["contract"] != payload["contract"]:
+        if contract_identity(snapshot["contract"]) != contract_identity(payload["contract"]):
             raise ValueError("Existing benchmark experiment differs")
     else:
         snapshot = {"schema": 1, "profile": profile_id,
