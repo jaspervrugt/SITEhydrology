@@ -11,6 +11,16 @@ def same_score(actual,expected):
     if actual is None or expected is None:return actual is None and expected is None
     return number(actual) and number(expected) and abs(actual-expected)<=1e-8+1e-5*abs(expected)
 
+def contract_identity(contract):
+    # MATLAB represents unused product selectors as [] after JSON decoding.
+    # Historical snapshots encode those same two unused fields as null.
+    result=dict(contract)
+    if isinstance(result.get('provenance'),dict):
+        result['provenance']=dict(result['provenance'])
+        for key in ('precip','temp'):
+            if result['provenance'].get(key)==[]:result['provenance'][key]=None
+    return result
+
 def receipt(candidate,manifest,baseline_bytes,revision):
     candidate,manifest=Path(candidate),Path(manifest)
     payload=read_json(candidate);approved=read_json(manifest);report=validate(payload,approved)
@@ -21,7 +31,7 @@ def receipt(candidate,manifest,baseline_bytes,revision):
     if proof['schema'] not in (1,2) or proof['mode']!='local_reference':raise ValueError('Unsupported reference check')
     if hashlib.sha256(baseline_bytes).hexdigest()!=proof['snapshotSha256']:raise ValueError('Reference snapshot checksum differs')
     baseline=json.loads(baseline_bytes)
-    if baseline['profile']!=payload['profile'] or baseline['contract']!=payload['contract']:raise ValueError('Reference experiment differs')
+    if baseline['profile']!=payload['profile'] or contract_identity(baseline['contract'])!=contract_identity(payload['contract']):raise ValueError('Reference experiment differs')
     rows=payload['records'];rows=[rows] if isinstance(rows,dict) else rows
     evidence=proof['records'];evidence=[evidence] if isinstance(evidence,dict) else evidence
     if not isinstance(evidence,list) or len(evidence)>len(baseline['records']):raise ValueError('Invalid reference evidence')
