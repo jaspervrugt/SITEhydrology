@@ -29,6 +29,7 @@ stage='reading local pending results';
 try
     loaded=load(pendingFile,'submission');
     if isfield(loaded.submission,'localCheckedPayload'),loaded.submission=rmfield(loaded.submission,'localCheckedPayload');end
+    if isfield(loaded.submission,'initialEnvelope'),loaded.submission=rmfield(loaded.submission,'initialEnvelope');end
     payload=site_benchmark_payload(loaded.submission);
     % Download the trusted approved manifest before authenticating. Empty
     % manifests and unapproved profiles cannot request any upload.
@@ -44,39 +45,41 @@ try
             profile=approved.id;break
         end
     end
-    if isempty(profile)
-        logFcn('Shared benchmarks: this exact experiment has not yet been approved.');
-        return
-    end
-    payload.profile=profile;payload.contract=approved.contract;
-    stage='downloading current verified benchmark snapshot';
-    [snapshot,snapshotHash]=site_benchmark_fetch_snapshot(profile);
-    snapshot=site_benchmark_attach_input_checksums(snapshot,approved);
-    payload=site_benchmark_filter_records(payload,snapshot,approved);
-    if isempty(payload.records)
-        logFcn('Shared benchmarks: current global results already match or exceed these local fits.');
-        result.state='current';return
-    end
-    stage='checking existing GitHub fits on local data';
-    if isempty(snapshot)
-        logFcn('Shared benchmarks: no reference exists yet. Results remain local for initial owner review.');
-        result.state='reference_required';return
-    end
-    if ~isfield(loaded.submission,'runConfig')
-        logFcn('Shared benchmarks: this older contribution needs a short run in the updated SITE before its local reference check.');return
-    end
+    initialMode=isempty(profile);initialEnvelope=[];
     inputs=[];if isappdata(fig,'SITEBenchmarkReferenceInputs'),inputs=getappdata(fig,'SITEBenchmarkReferenceInputs');end
-    logFcn('Shared benchmarks: checking input fingerprints, reference fits and proposed improvements.');
-    loader=site_benchmark_local_context(loaded.submission.runConfig,unique(string({payload.records.basin})),inputs);
-    pool=site_benchmark_reference_pool(loaded.submission.runConfig,logFcn);
-    [payload,check]=site_benchmark_local_reference_check(payload,snapshot,snapshotHash,loader,logFcn,pool);
-    logFcn(sprintf('Shared benchmarks: reference check passed for %d basins; %d failed; %d need an initial reference.',check.passed,check.failed,check.unseeded));
-    if isempty(payload.records),result.state='reference_required';return,end
-    loaded.submission.localCheckedPayload=payload;submission=loaded.submission;
+    if ~initialMode
+        payload.profile=profile;payload.contract=approved.contract;
+        stage='downloading current verified benchmark snapshot';
+        [snapshot,snapshotHash]=site_benchmark_fetch_snapshot(profile);
+        snapshot=site_benchmark_attach_input_checksums(snapshot,approved);
+        payload=site_benchmark_filter_records(payload,snapshot,approved);
+        if isempty(payload.records),logFcn('Shared benchmarks: current global results already match or exceed these local fits.');result.state='current';return,end
+        initialMode=isempty(snapshot);
+        if ~initialMode,initialMode=any(~ismember(string({payload.records.basin}),string({snapshot.records.basin})));end
+    end
+    if initialMode
+        assert(isfield(loaded.submission,'runConfig'),'SITE:InitialRunConfig','Run the updated SITE before submitting a first reference.');
+        stage='preparing first-reference input checksums';
+        initialEnvelope=site_benchmark_initial_envelope(loaded.submission,inputs);
+        initialEnvelope.payload.records=payload.records;initialEnvelope.inputFingerprints.records=initialEnvelope.inputFingerprints.records(ismember(string({initialEnvelope.inputFingerprints.records.basin}),unique(string({payload.records.basin}))));payload=initialEnvelope.payload;profile=payload.profile;
+        loaded.submission.initialEnvelope=initialEnvelope;
+        logFcn('Shared benchmarks: first results will wait for owner-computer verification.');
+    else
+        stage='checking existing GitHub fits on local data';
+        if ~isfield(loaded.submission,'runConfig'),logFcn('Shared benchmarks: this older contribution needs a short run in the updated SITE before its local reference check.');return,end
+        logFcn('Shared benchmarks: checking input fingerprints, reference fits and proposed improvements.');
+        loader=site_benchmark_local_context(loaded.submission.runConfig,unique(string({payload.records.basin})),inputs);
+        pool=site_benchmark_reference_pool(loaded.submission.runConfig,logFcn);
+        [payload,check]=site_benchmark_local_reference_check(payload,snapshot,snapshotHash,loader,logFcn,pool);
+        logFcn(sprintf('Shared benchmarks: reference check passed for %d basins; %d failed; %d need an initial reference.',check.passed,check.failed,check.unseeded));
+        if isempty(payload.records),result.state='reference_required';return,end
+    end
+    loaded.submission.localCheckedPayload=payload;if initialMode,initialEnvelope.payload=payload;loaded.submission.initialEnvelope=initialEnvelope;end;submission=loaded.submission;
     temporary=[tempname '.mat'];save(temporary,'submission','-v7.3');movefile(temporary,pendingFile,'f');
     try,site_benchmark_background_ui('queue',fig,pendingFile,logFcn);
     catch,logFcn('Shared benchmarks: background retry could not be configured; pending results remain local.');end
-    body=jsonencode(payload); bytes=unicode2native(body,'UTF-8');
+    upload=payload;if initialMode,initialEnvelope.payload=payload;upload=initialEnvelope;loaded.submission.initialEnvelope=initialEnvelope;end
+    body=jsonencode(upload); bytes=unicode2native(body,'UTF-8');
     assert(numel(bytes)<=20*1024*1024,'SITE:BenchmarkSize','Submission is too large.');
     stage='GitHub sign-in';
     if ~automatic,[token,credential]=site_benchmark_login_ui(fig,cfg.clientId);end
@@ -97,9 +100,10 @@ try
             payload.records(n).contributor=login;
         end
     end
-    loaded.submission.localCheckedPayload=payload;submission=loaded.submission;
+    loaded.submission.localCheckedPayload=payload;if initialMode,initialEnvelope.payload=payload;loaded.submission.initialEnvelope=initialEnvelope;end;submission=loaded.submission;
     temporary=[tempname '.mat'];save(temporary,'submission','-v7.3');movefile(temporary,pendingFile,'f');
-    body=jsonencode(payload);bytes=unicode2native(body,'UTF-8');
+    upload=payload;if initialMode,initialEnvelope.payload=payload;upload=initialEnvelope;loaded.submission.initialEnvelope=initialEnvelope;end
+    body=jsonencode(upload);bytes=unicode2native(body,'UTF-8');
     assert(numel(bytes)<=20*1024*1024,'SITE:BenchmarkSize','Submission is too large.');
     repo=root;
     if ~strcmpi(login,cfg.owner)
@@ -123,7 +127,7 @@ try
         api('post',[repo '/git/refs'],token, ...
             struct('ref',['refs/heads/' branch],'sha',base.object.sha),false);
     end
-    path=['benchmarks/inbox/' hash '.json'];
+    path=['benchmarks/inbox/' hash '.json'];if initialMode,path=['benchmarks/initial-inbox/' hash '.json'];end
     commit=struct('message',['Propose SITE benchmark fits: ' profile], ...
         'content',matlab.net.base64encode(bytes),'branch',branch);
     try
@@ -140,12 +144,13 @@ try
     % Login and generated branch use URL-safe characters; encode the colon.
     stage='creating benchmark verification request';
     prs=api('get',[root '/pulls?state=open&head=' strrep(head,':','%3A')],token,[],false);
+    title=['SITE benchmark contribution: ' profile];description='Generated by SITE after reproducing shared reference scores on local data.';
+    if initialMode,title=['SITE initial reference: ' payload.contract.provenance.region '/' payload.contract.model '/' payload.contract.resolution];description='Numerical claims and input checksums. Owner-computer replay is required before publication.';end
     if isempty(prs)
         pr=api('post',[root '/pulls'],token,struct( ...
-            'title',['SITE benchmark contribution: ' profile], ...
+            'title',title, ...
             'head',head,'base','main','draft',true, ...
-            'body',['Generated by SITE after reproducing the existing shared reference scores on local data. ' ...
-                'Cooperative local consistency check; no independent dataset download.']),false);
+            'body',description),false);
     else
         pr=prs(1);
     end
