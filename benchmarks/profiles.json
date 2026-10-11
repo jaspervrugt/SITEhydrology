@@ -2772,7 +2772,11 @@
           }
         ]
       },
-      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units."
+      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units.",
+      "legacyAttribution": {
+        "contributor": "jaspervrugt",
+        "platform": "Windows"
+      }
     },
     {
       "basinIds": [
@@ -5528,7 +5532,11 @@
           }
         ]
       },
-      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units."
+      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units.",
+      "legacyAttribution": {
+        "contributor": "jaspervrugt",
+        "platform": "Windows"
+      }
     },
     {
       "basinIds": [
@@ -8290,7 +8298,11 @@
           }
         ]
       },
-      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units."
+      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units.",
+      "legacyAttribution": {
+        "contributor": "jaspervrugt",
+        "platform": "Windows"
+      }
     },
     {
       "basinIds": [
@@ -11070,7 +11082,11 @@
           }
         ]
       },
-      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units."
+      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units.",
+      "legacyAttribution": {
+        "contributor": "jaspervrugt",
+        "platform": "Windows"
+      }
     },
     {
       "basinIds": [
@@ -13853,7 +13869,11 @@
           }
         ]
       },
-      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units."
+      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units.",
+      "legacyAttribution": {
+        "contributor": "jaspervrugt",
+        "platform": "Windows"
+      }
     },
     {
       "basinIds": [
@@ -16612,7 +16632,11 @@
           }
         ]
       },
-      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units."
+      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units.",
+      "legacyAttribution": {
+        "contributor": "jaspervrugt",
+        "platform": "Windows"
+      }
     },
     {
       "basinIds": [
@@ -19392,7 +19416,11 @@
           }
         ]
       },
-      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units."
+      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units.",
+      "legacyAttribution": {
+        "contributor": "jaspervrugt",
+        "platform": "Windows"
+      }
     },
     {
       "basinIds": [
@@ -22151,7 +22179,11 @@
           }
         ]
       },
-      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units."
+      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units.",
+      "legacyAttribution": {
+        "contributor": "jaspervrugt",
+        "platform": "Windows"
+      }
     },
     {
       "basinIds": [
@@ -24814,7 +24846,11 @@
           }
         ]
       },
-      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units."
+      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units.",
+      "legacyAttribution": {
+        "contributor": "jaspervrugt",
+        "platform": "Windows"
+      }
     },
     {
       "basinIds": [
@@ -27486,7 +27522,11 @@
           }
         ]
       },
-      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units."
+      "inputFingerprintSource": "Owner local inputs, registered 2026-10-11; prepared numerical arrays rounded to 1e-9 input units.",
+      "legacyAttribution": {
+        "contributor": "jaspervrugt",
+        "platform": "Windows"
+      }
     }
   ],
   "schema": 1

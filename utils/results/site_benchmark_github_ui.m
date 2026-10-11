@@ -51,7 +51,7 @@ try
     payload.profile=profile;payload.contract=approved.contract;
     stage='downloading current verified benchmark snapshot';
     [snapshot,snapshotHash]=site_benchmark_fetch_snapshot(profile);
-    if ~isempty(snapshot)&&isfield(approved,'inputFingerprints'),snapshot.inputFingerprints=approved.inputFingerprints;end
+    snapshot=site_benchmark_attach_input_checksums(snapshot,approved);
     payload=site_benchmark_filter_records(payload,snapshot,approved);
     if isempty(payload.records)
         logFcn('Shared benchmarks: current global results already match or exceed these local fits.');
@@ -91,6 +91,16 @@ try
     stage='checking GitHub account';
     account=api('get','https://api.github.com/user',token,[],false);
     login=account.login;
+    setappdata(0,'SITEBenchmarkContributor',login);
+    for n=1:numel(payload.records)
+        if isfield(payload.records(n),'contributor') && strcmp(payload.records(n).contributor,'Unknown')
+            payload.records(n).contributor=login;
+        end
+    end
+    loaded.submission.localCheckedPayload=payload;submission=loaded.submission;
+    temporary=[tempname '.mat'];save(temporary,'submission','-v7.3');movefile(temporary,pendingFile,'f');
+    body=jsonencode(payload);bytes=unicode2native(body,'UTF-8');
+    assert(numel(bytes)<=20*1024*1024,'SITE:BenchmarkSize','Submission is too large.');
     repo=root;
     if ~strcmpi(login,cfg.owner)
         fork=api('post',[root '/forks'],token,struct('default_branch_only',true),false);

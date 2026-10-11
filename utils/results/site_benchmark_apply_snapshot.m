@@ -2,6 +2,10 @@ function [merged,report]=site_benchmark_apply_snapshot(store,snapshot)
 %SITE_BENCHMARK_APPLY_SNAPSHOT Import numerical records without file writes.
 % Caller must first validate the trusted URL, checksum and exact contract.
 candidate=store;
+for key={'contributor','platform'}
+ name=key{1};if ~isfield(store,name),store.(name)=repmat("Unknown",size(store.train));end
+ candidate.(name)=repmat("Unknown",size(store.train));
+end
 candidate.train(:)=NaN;candidate.eval(:)=NaN;
 candidate.theta(:)=NaN;candidate.nTheta(:)=NaN;
 candidate.updated(:)=NaT;candidate.optimizedLoss(:)="";
@@ -28,6 +32,15 @@ for k=1:numel(snapshot.records)
     candidate.optimizedLoss(row,j)=string(r.optimizedLoss);
     candidate.optimizer(row,j)=r.optimizer;
     candidate.runtime(row,j)=r.runtime;
+    for counter={'runCount','improvementCount','contributor','platform'}
+        key=counter{1};candidate.(key)(row,j)=store.(key)(row,j);
+        if isfield(r,key)
+            if ismember(key,{'contributor','platform'}),candidate.(key)(row,j)=string(r.(key));else,candidate.(key)(row,j)=r.(key);end
+        end
+        if ~isfield(r,key) && ismember(key,{'contributor','platform'}) && isfield(snapshot,'legacyAttribution') && isfield(snapshot.legacyAttribution,key)
+            candidate.(key)(row,j)=string(snapshot.legacyAttribution.(key));
+        end
+    end
     candidate.updated(row,j)=datetime(r.updated,'InputFormat','yyyy-MM-dd''T''HH:mm:ss');
 end
 [merged,report]=site_benchmark_merge(store,candidate);

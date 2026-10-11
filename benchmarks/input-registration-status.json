@@ -1,0 +1,452 @@
+[
+  {
+    "region": "CAMELS_AR",
+    "resolution": "daily",
+    "complete": true,
+    "registeredBasins": 59,
+    "eligibleBasins": 46,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_AU",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": [
+      "read_hydro_timeseries:MissingDateColumns"
+    ]
+  },
+  {
+    "region": "CAMELS_AT",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_AT",
+    "resolution": "hourly",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_BE",
+    "resolution": "daily",
+    "complete": true,
+    "registeredBasins": 55,
+    "eligibleBasins": 47,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_BR",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CHAMELLION",
+    "resolution": "daily",
+    "complete": true,
+    "registeredBasins": 4560,
+    "eligibleBasins": 4225,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_CA",
+    "resolution": "daily",
+    "complete": true,
+    "registeredBasins": 764,
+    "eligibleBasins": 755,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_CA",
+    "resolution": "hourly",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_SPAT",
+    "resolution": "daily",
+    "complete": true,
+    "registeredBasins": 1426,
+    "eligibleBasins": 1397,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_SPAT",
+    "resolution": "hourly",
+    "complete": true,
+    "registeredBasins": 1426,
+    "eligibleBasins": 1401,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_CL",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_COL",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_CZ",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_CZ",
+    "resolution": "hourly",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_DK",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_EE",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_ET",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_FI",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_FR",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_DE",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_DEH",
+    "resolution": "hourly",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_GB",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_GB",
+    "resolution": "hourly",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_IS",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_IS",
+    "resolution": "hourly",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_IND",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_IE",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_IL",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_JM",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_JP",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_LUX",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_LUX",
+    "resolution": "hourly",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_LUX",
+    "resolution": "15min",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_MX",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_NA",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_NZ",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_NZ",
+    "resolution": "hourly",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_NO",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_PE",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_PL",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_PR",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "EStreams_PT",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "HYDRO_CIS",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_ZA",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELSH_KR",
+    "resolution": "hourly",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_KR",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_ES",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "BULL_ES",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_SE",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_CH",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "HYD_RESPONSES",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_US",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELS_US",
+    "resolution": "hourly",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "CAMELSH_US",
+    "resolution": "hourly",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  },
+  {
+    "region": "MACH_US",
+    "resolution": "daily",
+    "complete": false,
+    "registeredBasins": 0,
+    "eligibleBasins": 0,
+    "errors": []
+  }
+]

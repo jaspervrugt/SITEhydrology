@@ -6,7 +6,7 @@ s=submission.store;
 [clean,~]=site_benchmark_merge([],s);
 record=struct('basin','','metric','','train',0,'evaluation',0, ...
     'theta',[],'normalized',[],'optimizedLoss','','optimizer',0, ...
-    'runtime',0,'updated','','parameterRange',struct());
+    'runtime',0,'updated','','parameterRange',struct(),'runCount',0,'improvementCount',0,'contributor','Unknown','platform','Unknown');
 records=repmat(record,0,1);
 for k=1:numel(clean.ids)
     for j=1:numel(clean.metricNames)
@@ -19,6 +19,9 @@ for k=1:numel(clean.ids)
         r.normalized=(r.theta(:)-r.parameterRange.thMin(:))./(r.parameterRange.thMax(:)-r.parameterRange.thMin(:));
         r.optimizedLoss=char(clean.optimizedLoss(k,j));
         r.optimizer=clean.optimizer(k,j); r.runtime=clean.runtime(k,j);
+        r.runCount=clean.runCount(k,j); r.improvementCount=clean.improvementCount(k,j);
+        if isfield(clean,'contributor'),r.contributor=char(clean.contributor(k,j));end
+        if isfield(clean,'platform'),r.platform=char(clean.platform(k,j));end
         % Keep the recorded local time without inventing a timezone.
         r.updated=char(string(clean.updated(k,j),'yyyy-MM-dd''T''HH:mm:ss'));
         records(end+1,1)=r; %#ok<AGROW>

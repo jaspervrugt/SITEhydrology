@@ -24,16 +24,16 @@ try
     if isempty(profile),return,end
     % Default profiles always fetch the current shared reference.
     setappdata(fig,'SITEBenchmarkRetryApproved',true);
-    logFcn('Shared benchmarks: downloading latest default results. Better local fits are retained.');
+    logFcn('Shared benchmarks: downloading latest default results from GitHub. Better local fits are retained.');
     [snapshot,snapshotHash]=site_benchmark_fetch_snapshot(profile);
     if isempty(snapshot)
         logFcn('Shared benchmarks: no shared reference yet; continuing with local results.');return
     end
-    if ~isempty(snapshot)&&isfield(p,'inputFingerprints'),snapshot.inputFingerprints=p.inputFingerprints;end
+    snapshot=site_benchmark_attach_input_checksums(snapshot,p);
     assert(site_benchmark_profile_equal(snapshot.contract,contract), ...
         'SITE:BenchmarkMismatch','Snapshot experiment differs.');
     [merged,report]=site_benchmark_apply_snapshot(store,snapshot);
-    if report.improvements>0
+    if report.improvements>0 || (isfield(report,'metadataUpdates')&&report.metadataUpdates>0)
         % The approved profile has exactly the current bounds, so a foreign
         % registry number can safely map to the local registered range.
         merged.rangeID(isnan(merged.rangeID) & isfinite(merged.train))=store.currentRangeID;
