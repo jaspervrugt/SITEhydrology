@@ -8438,6 +8438,9 @@ function SITE_ui(varargin)
                 idx = S.runtime.benchmarkProgressIdx;
             end
             t = string(datetime('now','Format','yyyy-MM-dd HH:mm:ss'));
+            if str2double(progress{1}) == 100
+                s = regexprep(s,'\[100% Done\]$','Done');
+            end
             line = string(sprintf('[%s] %s',t,s));
             if isempty(idx) || idx > numel(S.store.logAll)
                 S.store.logAll(end+1,1) = line;
