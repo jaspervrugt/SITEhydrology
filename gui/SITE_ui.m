@@ -450,9 +450,6 @@ function SITE_ui(varargin)
         'Visible','off', ...
         'AutoResizeChildren','off', ...
         'CloseRequestFcn',@onCloseRequest);
-    benchmarkMenu=uimenu(f,'Text','Shared benchmarks');
-    uimenu(benchmarkMenu,'Text','Retry saved contribution...', ...
-        'MenuSelectedFcn',@onRetrySavedBenchmark);
     % Clear stale table-cell highlighting whenever focus moves to a
     % non-table part of the GUI.  Individual table callbacks remain intact.
     try
@@ -615,11 +612,11 @@ function SITE_ui(varargin)
     % -------------------
     % bottom button strip
     % -------------------
-    gBottomLeft = uigridlayout(gLeft,[1 5]);
+    gBottomLeft = uigridlayout(gLeft,[1 6]);
     gBottomLeft.Layout.Row = 3;
     gBottomLeft.Layout.Column = 1;
     gBottomLeft.ColumnWidth = ...
-        {'1x','1x','1x','1x','1x'};
+        {'1x','1x','1x','1x','1x',0};
     gBottomLeft.RowHeight = {26};
     gBottomLeft.Padding = [0 0 0 0];
     gBottomLeft.ColumnSpacing = 8;
@@ -660,6 +657,8 @@ function SITE_ui(varargin)
         'Enable','off', ...
         'fontweight','bold');
     
+    S.ui.btnRetryUpload=uibutton(gBottomLeft,'Text','Retry upload','FontSize',fontsizeButton,'Visible','off','ButtonPushedFcn',@onRetrySavedBenchmark);
+    S.ui.btnRetryUpload.Layout.Column=6;
     %% RIGHT SIDE ---------------------------------------------------------
     pRight = uipanel(gMain,'Title','');
     pRight.Layout.Row = 1;
@@ -932,6 +931,8 @@ function SITE_ui(varargin)
     setGuiState('idle');
     
     logmsg('SITE_ui ready.');
+    refreshRetryUpload();
+    try,site_benchmark_background_ui('disable',f,'',@logmsg);catch,logmsg('Could not disable legacy background upload task.');end
     if isdeployed
         cleanupTimer=timer('ExecutionMode','fixedSpacing','Period',300,'StartDelay',30,'BusyMode','drop','TimerFcn',@cleanupSavedSubmissions);
         setappdata(f,'SITEBenchmarkCleanupTimer',cleanupTimer);
@@ -945,6 +946,8 @@ function SITE_ui(varargin)
 
     function cleanupSavedSubmissions(~,~)
         if ~isgraphics(f)||S.runtime.isRunning,return,end
+        if isfield(S.runtime,'benchmarkUploadBusy')&&S.runtime.benchmarkUploadBusy,return,end
+        refreshRetryUpload();
         pending=dir(fullfile(S.cfg.dirres,'**','*_submission.mat'));
         for p=1:numel(pending)
             if S.runtime.isRunning,return,end
@@ -6098,17 +6101,26 @@ function SITE_ui(varargin)
         end
     end
 
+    function refreshRetryUpload()
+        [pendingFile,pending]=site_benchmark_manual_submission('latest',S.cfg.dirres);
+        S.runtime.latestBenchmarkSubmission=pendingFile;
+        S.ui.btnRetryUpload.Visible=tern(pending,'on','off');
+        widths={'1x','1x','1x','1x','1x',0};if pending,widths{6}='1x';end;gBottomLeft.ColumnWidth=widths;
+        busy=isfield(S.runtime,'benchmarkUploadBusy')&&S.runtime.benchmarkUploadBusy;
+        S.ui.btnRetryUpload.Enable=tern(~S.runtime.isRunning&&~busy,'on','off');
+        S.ui.btnRetryUpload.Tooltip=['Retry the latest saved submission: ' pendingFile];
+    end
+    function finishBenchmarkRetry()
+        S.runtime.benchmarkUploadBusy=false;refreshRetryUpload();
+    end
     function onRetrySavedBenchmark(~,~)
-        if S.runtime.isRunning
-            uialert(f,'Wait until the current run finishes before retrying saved results.', ...
-                'Run in progress');
-            return
-        end
-        [name,folder]=uigetfile('*_submission.mat','Select saved SITE contribution');
-        if isequal(name,0),return,end
-        pendingFile=fullfile(folder,name);
-        safeGuiCall('Shared benchmark retry', ...
-            @()site_benchmark_github_ui(f,pendingFile,@logmsg));
+        if S.runtime.isRunning,return,end
+        if isfield(S.runtime,'benchmarkUploadBusy')&&S.runtime.benchmarkUploadBusy,return,end
+        refreshRetryUpload();pendingFile=S.runtime.latestBenchmarkSubmission;
+        if isempty(pendingFile)||~isfile(pendingFile),return,end
+        S.runtime.benchmarkUploadBusy=true;S.ui.btnRetryUpload.Enable='off';
+        retryCleanup=onCleanup(@finishBenchmarkRetry);
+        safeGuiCall('Shared benchmark retry',@()site_benchmark_github_ui(f,pendingFile,@logmsg));
     end
 
     function onRun(~,~)
@@ -6126,6 +6138,7 @@ function SITE_ui(varargin)
 
         resetRunOutputState();
         S.runtime.isRunning=true;
+        refreshRetryUpload();
         S.runtime.stopRequested=false;
         S.runtime.elapsedClock=tic;
         S.runtime.elapsedFinal=NaN;
@@ -6204,6 +6217,7 @@ function SITE_ui(varargin)
         end
         S.runtime.isRunning=false;
         S.runtime.stopRequested=false;
+        refreshRetryUpload();
         applyGuiStateControls();
         siteUi('configureVisibleTabs');
         safeGuiCall('Post-run readiness refresh',@refreshReadiness);
@@ -8439,7 +8453,7 @@ function SITE_ui(varargin)
             end
             t = string(datetime('now','Format','yyyy-MM-dd HH:mm:ss'));
             if str2double(progress{1}) == 100
-                s = regexprep(s,'\[100% Done\]$','Done');
+                s = regexprep(s,'\s*\[100% Done\]$','');
             end
             line = string(sprintf('[%s] %s',t,s));
             if isempty(idx) || idx > numel(S.store.logAll)
