@@ -1,5 +1,7 @@
 # SITEhydrology
 
+**[Read the SITE benchmark post](https://jaspervrugt.github.io/SAGE-SITE-blog/#site-shared-benchmarks)** — shared results, optimization trials, and model-performance benchmarks.
+
 Current release: [v1.0.1](https://github.com/jaspervrugt/SITEhydrology/releases/tag/v1.0.1). See [release notes](docs/RELEASE_v1.0.1.md). Public MATLAB source uses SAGEhydrology v1.0.3 or later.
 
 Site-specific Inference and Training Engine (SITE) calibrates conceptual hydrologic models independently for individual basins. It uses the model, data-reading, sensitivity, and diagnostic infrastructure provided by [SAGEhydrology](https://github.com/jaspervrugt/SAGEhydrology), while optimizing a separate parameter vector for each basin rather than learning parameters from static basin attributes.
