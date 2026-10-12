@@ -33,6 +33,7 @@ hash=lower(reshape(dec2hex(typecast(md.digest(bytes),'uint8'),2).',1,[]));
 assert(strcmp(hash,entry.sha256),'SITE:BenchmarkChecksum','Snapshot checksum differs.');
 snapshotHash=hash;
 snapshot=jsondecode(native2unicode(bytes,'UTF-8'));
+snapshot.records=site_benchmark_uniform_records(snapshot.records);
 assert(snapshot.schema==1 && strcmp(snapshot.profile,profile), ...
     'SITE:BenchmarkProfile','Snapshot profile differs.');
 end
