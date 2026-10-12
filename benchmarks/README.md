@@ -6,7 +6,7 @@ Contributions contain numerical JSON only. Before submission, SITE fetches the c
 
 GitHub checks this evidence against the owner's immutable results snapshot and validates exact experiment settings, basin identities, parameter bounds and provenance. Routine publication does not download hydrological datasets or run hydrological simulations. This is a cooperative consistency check; the client evidence is not independent numerical verification. Contributors cannot directly edit the shared files.
 
-Basins without a complete shared reference remain local for initial owner review. The separate owner-bootstrap workflow is manual only; its independent data download is never triggered by an ordinary contribution.
+For basins with shared references, SITE replays every available incumbent objective and every proposed fit. An undefined objective such as S_logp may have no finite saved reference; its absence does not block improvements to other referenced metrics. Partial-reference contributions require candidate replay and registered input fingerprints. A proposed metric with no incumbent still remains local for initial owner review. The separate owner-bootstrap workflow is manual only; its independent data download is never triggered by an ordinary contribution.
 
 For each basin and metric, only a strictly better training score replaces the current parameters and paired evaluation score. All nine metrics are checked at every trial optimum. The MAT checkpoint, parameter workbook, master workbook, and snapshot index are committed together. Immutable snapshots and Git history retain recovery copies. Concurrent changes cause publication to stop and recompare rather than overwrite newer results.
 

@@ -73,7 +73,10 @@ try
         pool=site_benchmark_reference_pool(loaded.submission.runConfig,logFcn);
         [payload,check]=site_benchmark_local_reference_check(payload,snapshot,snapshotHash,loader,logFcn,pool);
         logFcn(sprintf('Shared benchmarks: reference check passed for %d basins; %d failed; %d need an initial reference.',check.passed,check.failed,check.unseeded));
-        if isempty(payload.records),result.state='reference_required';return,end
+        if isempty(payload.records)
+            logFcn('Shared benchmarks: upload stopped; no verified fits remain. Proposed metrics without shared references need owner verification. Saved results remain local.');
+            result.state='reference_required';site_benchmark_upload_progress(fig,'done','');return
+        end
     end
     loaded.submission.localCheckedPayload=payload;if initialMode,initialEnvelope.payload=payload;loaded.submission.initialEnvelope=initialEnvelope;end;submission=loaded.submission;
     temporary=[tempname '.mat'];save(temporary,'submission','-v7.3');movefile(temporary,pendingFile,'f');

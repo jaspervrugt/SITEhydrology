@@ -45,7 +45,14 @@ def receipt(candidate,manifest,baseline_bytes,revision):
         checked[key]=r
     metrics=payload['contract']['metrics']
     for basin in {r['basin'] for r in rows}:
-        if any((basin,m) not in checked for m in metrics):raise ValueError('All reference objectives must match for each contributing basin')
+        available={m for b,m in references if b==basin}
+        proposed={r['metric'] for r in rows if r['basin']==basin}
+        if not available or not proposed<=available:
+            raise ValueError('Every proposed metric requires a shared reference')
+        if available!=set(metrics) and proof['schema']!=2:
+            raise ValueError('Partial references require candidate replay and input fingerprints')
+        if any((basin,m) not in checked for m in available):
+            raise ValueError('All available reference objectives must match for each contributing basin')
     if proof['schema']==2:
         if 'candidateRecords' not in proof or 'inputFingerprints' not in proof:raise ValueError('Candidate replay and fingerprints required')
         replay=proof['candidateRecords'];replay=[replay] if isinstance(replay,dict) else replay

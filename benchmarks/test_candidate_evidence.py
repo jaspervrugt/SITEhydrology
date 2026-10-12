@@ -21,6 +21,31 @@ class CandidateEvidenceTests(LocalReferenceTests):
     def test_missing_input_evidence(self):
         self.payload['localReferenceCheck']['inputFingerprints']['records']=[]
         with self.assertRaises(ValueError):self.check()
+    def partial_reference(self):
+        import json,hashlib
+        baseline=json.loads(self.raw)
+        baseline['records']=[r for r in baseline['records'] if r['metric']!='S_logp']
+        self.raw=json.dumps(baseline).encode()
+        proof=self.payload['localReferenceCheck']
+        proof['snapshotSha256']=hashlib.sha256(self.raw).hexdigest()
+        proof['records']=[r for r in proof['records'] if r['metric']!='S_logp']
+    def test_partial_reference_with_full_candidate_and_input_evidence(self):
+        self.partial_reference()
+        self.assertEqual(self.check()['checked'],1)
+    def test_partial_reference_still_requires_every_available_incumbent(self):
+        self.partial_reference()
+        self.payload['localReferenceCheck']['records'].pop()
+        with self.assertRaises(ValueError):self.check()
+    def test_new_metric_still_requires_owner_reference(self):
+        self.partial_reference()
+        self.payload['records'][0]['metric']='S_logp'
+        self.payload['localReferenceCheck']['candidateRecords'][0]['metric']='S_logp'
+        with self.assertRaises(ValueError):self.check()
+    def test_partial_reference_rejects_legacy_evidence(self):
+        self.partial_reference()
+        proof=self.payload['localReferenceCheck'];proof['schema']=1
+        del proof['candidateRecords'];del proof['inputFingerprints']
+        with self.assertRaises(ValueError):self.check()
     def test_worse_candidate_evaluation_allowed(self):
         self.payload['records'][0].update(train=.95,evaluation=-2)
         self.payload['localReferenceCheck']['candidateRecords'][0].update(train=.95,evaluation=-2)
