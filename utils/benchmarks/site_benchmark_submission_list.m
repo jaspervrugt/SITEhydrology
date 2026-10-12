@@ -8,9 +8,8 @@ for k=1:numel(files)
  status='Awaiting upload';url='';receipt=[path '.upload.json'];
  if isfile(receipt)
   try
-   r=jsondecode(fileread(receipt));fid=fopen(path,'rb');assert(fid>=0);cleanup=onCleanup(@()fclose(fid));bytes=fread(fid,Inf,'*uint8');clear cleanup
-   md=java.security.MessageDigest.getInstance('SHA-256');hash=lower(reshape(dec2hex(typecast(md.digest(bytes),'uint8'),2).',1,[]));
-   if strcmp(r.state,'submitted')&&strcmp(r.sha256,hash)&&~isempty(regexp(r.url,'^https://github.com/jaspervrugt/SITEhydrology/pull/[0-9]+$','once')),status='Submitted';url=r.url;end
+   r=jsondecode(fileread(receipt));
+   if strcmp(r.state,'submitted')&&isfield(r,'bytes')&&isfield(r,'datenum')&&r.bytes==files(k).bytes&&r.datenum==files(k).datenum&&~isempty(regexp(r.url,'^https://github.com/jaspervrugt/SITEhydrology/pull/[0-9]+$','once')),status='Submitted';url=r.url;end
   catch,end
  end
  rows(end+1)=struct('path',path,'model',model,'saved',datestr(files(k).datenum,'dd mmm yyyy HH:MM'),'resolution',resolution,'status',status,'url',url);

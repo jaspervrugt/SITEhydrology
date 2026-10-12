@@ -9,7 +9,7 @@ if strcmp(action,'latest')
  end
 elseif strcmp(action,'submitted')
  if ~isfile(value),return,end
- receipt=struct('schema',1,'state','submitted','sha256',fileHash(value),'url',url);
+ info=dir(value);receipt=struct('schema',1,'state','submitted','sha256',fileHash(value),'url',url,'bytes',info.bytes,'datenum',info.datenum);
  destination=[value '.upload.json'];temporary=[tempname '.json'];fid=fopen(temporary,'wb');assert(fid>=0);fwrite(fid,unicode2native(jsonencode(receipt),'UTF-8'),'uint8');fclose(fid);movefile(temporary,destination,'f');
 else,error('SITE:SubmissionAction','Unknown submission action.');end
 end
