@@ -496,13 +496,13 @@ function SITE_ui(varargin)
     % -------------------------------------
     % header row: title + controls + status
     % -------------------------------------
-    gHdrLeft = uigridlayout(gLeft,[1 4]);
+    gHdrLeft = uigridlayout(gLeft,[1 5]);
     gHdrLeft.Layout.Row = 1;
     gHdrLeft.Layout.Column = 1;
     gHdrLeft.RowHeight = {30};
     % Save/load remain compact at the left; the status receives all
     % remaining horizontal space, which prevents truncation on laptops.
-    gHdrLeft.ColumnWidth = {'fit',110,110,'1x'};
+    gHdrLeft.ColumnWidth = {'fit',110,110,130,'1x'};
     gHdrLeft.Padding = [0 0 0 0];
     gHdrLeft.ColumnSpacing = 8;
     
@@ -542,13 +542,16 @@ function SITE_ui(varargin)
     S.ui.btnLoadSession.Layout.Row = 1;
     S.ui.btnLoadSession.Layout.Column = 3;
     
+    S.ui.btnUploadGitHub=uibutton(gHdrLeft,'Text','Upload to GitHub','FontSize',fontsizeButton,'ButtonPushedFcn',@onRetrySavedBenchmark);
+    S.ui.btnUploadGitHub.Layout.Column=4;
+
     S.ui.lblRunStatus = uilabel(gHdrLeft, ...
         'Text','Idle', ...
         'horizontalalignment','right', ...
         'fontsize',fontsizeGUI, ...
         'fontweight','bold');
     S.ui.lblRunStatus.Layout.Row = 1;
-    S.ui.lblRunStatus.Layout.Column = 4;
+    S.ui.lblRunStatus.Layout.Column = 5;
     
     % ---------
     % tab group
@@ -612,11 +615,11 @@ function SITE_ui(varargin)
     % -------------------
     % bottom button strip
     % -------------------
-    gBottomLeft = uigridlayout(gLeft,[1 6]);
+    gBottomLeft = uigridlayout(gLeft,[1 5]);
     gBottomLeft.Layout.Row = 3;
     gBottomLeft.Layout.Column = 1;
     gBottomLeft.ColumnWidth = ...
-        {'1x','1x','1x','1x','1x',0};
+        {'1x','1x','1x','1x','1x'};
     gBottomLeft.RowHeight = {26};
     gBottomLeft.Padding = [0 0 0 0];
     gBottomLeft.ColumnSpacing = 8;
@@ -657,8 +660,6 @@ function SITE_ui(varargin)
         'Enable','off', ...
         'fontweight','bold');
     
-    S.ui.btnRetryUpload=uibutton(gBottomLeft,'Text','Retry upload','FontSize',fontsizeButton,'Visible','off','ButtonPushedFcn',@onRetrySavedBenchmark);
-    S.ui.btnRetryUpload.Layout.Column=6;
     %% RIGHT SIDE ---------------------------------------------------------
     pRight = uipanel(gMain,'Title','');
     pRight.Layout.Row = 1;
@@ -6102,28 +6103,55 @@ function SITE_ui(varargin)
     end
 
     function refreshRetryUpload()
-        [pendingFile,pending]=site_benchmark_manual_submission('latest',S.cfg.dirres);
-        S.runtime.latestBenchmarkSubmission=pendingFile;
-        S.ui.btnRetryUpload.Visible=tern(pending,'on','off');
-        widths={'1x','1x','1x','1x','1x',0};if pending,widths{6}='1x';end;gBottomLeft.ColumnWidth=widths;
         busy=isfield(S.runtime,'benchmarkUploadBusy')&&S.runtime.benchmarkUploadBusy;
-        S.ui.btnRetryUpload.Enable=tern(~S.runtime.isRunning&&~busy,'on','off');
-        S.ui.btnRetryUpload.Tooltip=['Retry the latest saved submission: ' pendingFile];
+        S.ui.btnUploadGitHub.Enable=tern(~S.runtime.isRunning&&~busy,'on','off');
     end
     function finishBenchmarkRetry()
         S.runtime.benchmarkUploadBusy=false;refreshRetryUpload();
+        refreshUploadWindow();
     end
     function onRetrySavedBenchmark(~,~)
         if S.runtime.isRunning,return,end
         if isfield(S.runtime,'benchmarkUploadBusy')&&S.runtime.benchmarkUploadBusy,return,end
-        refreshRetryUpload();pendingFile=S.runtime.latestBenchmarkSubmission;
-        if isempty(pendingFile)||~isfile(pendingFile),return,end
-        S.runtime.benchmarkUploadBusy=true;S.ui.btnRetryUpload.Enable='off';
+        if isfield(S.ui,'uploadWindow')&&isgraphics(S.ui.uploadWindow),figure(S.ui.uploadWindow);refreshUploadWindow();return,end
+        S.ui.uploadRegion=region_helpers('code',S.cfg);
+        S.ui.uploadRoot=S.cfg.dirres;
+        S.ui.uploadWindow=uifigure('Name','Upload SITE results to GitHub','Position',[250 250 850 350]);
+        refreshUploadWindow();
+    end
+    function refreshUploadWindow()
+        if ~isfield(S.ui,'uploadWindow')||~isgraphics(S.ui.uploadWindow),return,end
+        w=S.ui.uploadWindow;delete(w.Children);
+        rows=site_benchmark_submission_list(S.ui.uploadRoot,S.ui.uploadRegion,5);
+        grid=uigridlayout(w,[8 5]);grid.RowHeight={28,28,36,36,36,36,36,'1x'};grid.ColumnWidth={'1x',170,90,140,110};grid.Padding=[15 15 15 15];
+        title=uilabel(grid,'Text',['Dataset: ' S.ui.uploadRegion],'FontWeight','bold');title.Layout.Row=1;title.Layout.Column=[1 5];
+        headings={'Model','Saved','Resolution','Status','Action'};
+        for c=1:5,label=uilabel(grid,'Text',headings{c},'FontWeight','bold');label.Layout.Row=2;label.Layout.Column=c;end
+        for k=1:numel(rows)
+            r=rows(k);values={r.model,r.saved,r.resolution,r.status};
+            for c=1:4,label=uilabel(grid,'Text',values{c});label.Layout.Row=k+2;label.Layout.Column=c;label.Tooltip=r.path;end
+            if isempty(r.url)
+                button=uibutton(grid,'Text','Upload','ButtonPushedFcn',@(~,~)uploadSelectedSubmission(r.path));
+            else
+                button=uibutton(grid,'Text','View request','ButtonPushedFcn',@(~,~)web(r.url,'-browser'));
+            end
+            button.Layout.Row=k+2;button.Layout.Column=5;
+        end
+        text='Newest first. Submitted requests are published after verification.';
+        if isempty(rows),text='No saved submissions for this dataset.';end
+        note=uilabel(grid,'Text',text,'WordWrap','on');note.Layout.Row=8;note.Layout.Column=[1 5];
+    end
+    function uploadSelectedSubmission(pendingFile)
+        if S.runtime.isRunning||~isfile(pendingFile),refreshUploadWindow();return,end
+        if isfield(S.runtime,'benchmarkUploadBusy')&&S.runtime.benchmarkUploadBusy,return,end
+        S.runtime.benchmarkUploadBusy=true;refreshRetryUpload();
+        buttons=findall(S.ui.uploadWindow,'Type','uibutton');set(buttons,'Enable','off');
         retryCleanup=onCleanup(@finishBenchmarkRetry);
-        safeGuiCall('Shared benchmark retry',@()site_benchmark_github_ui(f,pendingFile,@logmsg));
+        safeGuiCall('Shared benchmark upload',@()site_benchmark_github_ui(f,pendingFile,@logmsg));
     end
 
     function onRun(~,~)
+        if isfield(S.runtime,'benchmarkUploadBusy')&&S.runtime.benchmarkUploadBusy,return,end
         [datesOK,dateMessage] = local_required_period_dates(S.ui);
         if ~datesOK
             uialert(f,dateMessage,'Period dates required');
