@@ -12,7 +12,13 @@ metrics=string(payload.contract.metrics);refs=cell(numel(ids),1);results=cell(nu
 eligible=false(numel(ids),1);
 for b=1:numel(ids)
     refs{b}=snapshot.records(string({snapshot.records.basin})==ids(b));
-    eligible(b)=numel(refs{b})==numel(metrics)&&isequal(sort(string({refs{b}.metric})),sort(metrics(:).'));
+    % Some objectives are undefined and have no finite shared record.
+    % Replay every available incumbent, and require an incumbent for each
+    % proposed metric. A genuinely new metric still needs owner verification.
+    available=string({refs{b}.metric});
+    proposed=string({payload.records(string({payload.records.basin})==ids(b)).metric});
+    eligible(b)=~isempty(available)&&numel(unique(available))==numel(available) ...
+        &&all(ismember(available,metrics))&&all(ismember(proposed,available));
     if ~eligible(b),results{b}=struct('state','unseeded','rows',proof,'identifier','');end
 end
 candidateRefs=cell(numel(ids),1);expected=cell(numel(ids),1);

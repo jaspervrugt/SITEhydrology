@@ -1,0 +1,21 @@
+name: Test partial benchmark references
+on:
+  pull_request:
+    paths:
+      - 'benchmarks/local_reference_receipt.py'
+      - 'benchmarks/test_candidate_evidence.py'
+      - 'utils/**/site_benchmark_local_reference_check.m'
+      - 'utils/**/site_benchmark_github_ui.m'
+      - '.github/workflows/benchmark-reference-smoke.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify reference and candidate evidence guards
+        working-directory: benchmarks
+        run: python3 -m unittest test_local_reference_receipt test_candidate_evidence test_validate_submission test_publish_verified
