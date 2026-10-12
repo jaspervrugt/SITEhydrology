@@ -11,6 +11,7 @@ end
 identity=struct('resolution',profile.contract.resolution,'provenance',profile.contract.provenance,'period',profile.contract.period);
 if isfield(identity.provenance,'source'),identity.provenance=rmfield(identity.provenance,'source');end
 assert(catalog.schema==1&&strcmp(catalog.algorithm,'sha256-input-v1'),'SITE:InputChecksumCatalog','Unsupported trusted checksum catalog.');
+catalog.entries=site_benchmark_uniform_records(catalog.entries);
 for k=1:numel(catalog.entries)
  entry=catalog.entries(k);
  if entry.complete&&site_benchmark_contract_equal(entry.identity,identity)

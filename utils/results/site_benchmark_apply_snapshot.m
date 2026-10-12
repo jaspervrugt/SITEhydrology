@@ -34,10 +34,10 @@ for k=1:numel(snapshot.records)
     candidate.runtime(row,j)=r.runtime;
     for counter={'runCount','improvementCount','contributor','platform'}
         key=counter{1};candidate.(key)(row,j)=store.(key)(row,j);
-        if isfield(r,key)
+        if isfield(r,key) && ~isempty(r.(key))
             if ismember(key,{'contributor','platform'}),candidate.(key)(row,j)=string(r.(key));else,candidate.(key)(row,j)=r.(key);end
         end
-        if ~isfield(r,key) && ismember(key,{'contributor','platform'}) && isfield(snapshot,'legacyAttribution') && isfield(snapshot.legacyAttribution,key)
+        if (~isfield(r,key)||isempty(r.(key))) && ismember(key,{'contributor','platform'}) && isfield(snapshot,'legacyAttribution') && isfield(snapshot.legacyAttribution,key)
             candidate.(key)(row,j)=string(snapshot.legacyAttribution.(key));
         end
     end
