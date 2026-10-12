@@ -1,0 +1,26 @@
+name: Test automatic benchmark merging
+on:
+  pull_request:
+    paths:
+      - 'benchmarks/merge_published_contribution.py'
+      - 'benchmarks/test_merge_published_contribution.py'
+      - '.github/workflows/benchmark-publication.yml'
+      - '.github/workflows/benchmark-merge-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'benchmarks/merge_published_contribution.py'
+      - 'benchmarks/test_merge_published_contribution.py'
+      - '.github/workflows/benchmark-publication.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Check merge guards
+        working-directory: benchmarks
+        run: python3 -m unittest test_merge_published_contribution

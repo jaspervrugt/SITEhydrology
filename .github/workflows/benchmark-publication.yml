@@ -1,7 +1,7 @@
 name: Check local references and publish benchmark contributions
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths: ['benchmarks/inbox/*.json']
 permissions:
   contents: read
@@ -80,3 +80,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 benchmarks/publish_worker_batch.py --phase finish
+  merge:
+    needs: [verify, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - name: Merge the published numerical contribution
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python3 benchmarks/merge_published_contribution.py

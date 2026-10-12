@@ -18,6 +18,8 @@ The owner baseline was independently recalculated from saved parameter vectors b
 
 Publication is controlled by the repository variable SITE_BENCHMARK_PUBLISH. GUI submission is controlled by utils/results/site_benchmark_github.json. Only enabled profiles in benchmarks/profiles.json may contribute.
 
+After both reference verification and result publication succeed, the publication workflow marks routine numerical inbox contributions ready and squash-merges them automatically. It rechecks the contribution's head SHA and file list and respects branch protection. Failed checks, changed heads, non-inbox changes and initial-reference proposals remain unmerged. Result publication updates the shared files before this merge; an open inbox PR alone does not mean its result files are unpublished.
+
 Live verification and automatic three-file publication passed in [run 37999228345](https://github.com/jaspervrugt/SITEhydrology/actions/runs/37999228345). The new Windows pilot build is ready for interactive GUI testing. Existing public application releases have not been replaced; macOS must be rebuilt separately.
 
 Changing the pinned numerical core requires reapproval and a verified baseline; old and new numerical definitions must not be compared as one benchmark.
