@@ -262,16 +262,11 @@ function Invoke-Sync {
     }
 }
 function Install-Task {
-    $script=Join-Path $StateRoot 'site_benchmark_sync.ps1'
-    if(!(Test-Path -LiteralPath $script)){throw 'Missing sync helper'}
-    $args='-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "'+$script+'" -Action Sync -StateRoot "'+$StateRoot+'"'
-    $taskAction=New-ScheduledTaskAction -Execute (Join-Path $PSHOME 'powershell.exe') -Argument $args
-    $trigger=New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 15)
-    $settings=New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 10) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
-    $user=[Security.Principal.WindowsIdentity]::GetCurrent().Name
-    $principal=New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
+    # Periodic client uploads are retired; only explicit GUI attempts remain.
     $suffix=(Get-Digest ($Utf8.GetBytes($StateRoot))).Substring(0,12)
-    Register-ScheduledTask -TaskName ('SITE benchmark sync '+$suffix) -Action $taskAction -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null
+    $name='SITE benchmark sync '+$suffix
+    $task=Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
+    if($task){Stop-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue;Unregister-ScheduledTask -TaskName $name -Confirm:$false}
 }
 if($Action -eq 'Library'){return}
 [IO.Directory]::CreateDirectory($StateRoot) | Out-Null

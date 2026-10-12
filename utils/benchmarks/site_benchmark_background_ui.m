@@ -2,7 +2,8 @@ function site_benchmark_background_ui(action,fig,value,logFcn)
 rawLogFcn=logFcn; logFcn=@(message)site_benchmark_log_ui(rawLogFcn,message);
 % Lightweight Windows retry helper; never give it repository write authority.
 if ~isdeployed || ~ispc || ~isgraphics(fig,'figure'),return,end
-if ~isappdata(fig,'SITEBenchmarkRetryApproved'),return,end
+if strcmp(action,'queue'),return,end
+if ~strcmp(action,'disable')&&~isappdata(fig,'SITEBenchmarkRetryApproved'),return,end
 root=fullfile(getenv('LOCALAPPDATA'),'SITEhydrology','benchmark-sync');
 if ~isfolder(root),mkdir(root);end
 source=fullfile(fileparts(mfilename('fullpath')),'site_benchmark_sync.ps1');
@@ -23,6 +24,8 @@ if strcmp(action,'queue')
     movefile(temporary,fullfile(folder,[name '.json']),'f');
     invoke('Install','');
     logFcn('Shared benchmarks: pending results can retry after SITE closes while you are signed in to Windows.');
+elseif strcmp(action,'disable')
+    invoke('Install','');
 elseif strcmp(action,'credential')
     % Pass the credential through stdin; never through command arguments or
     % a plaintext temporary file. Windows encrypts it for the current user.

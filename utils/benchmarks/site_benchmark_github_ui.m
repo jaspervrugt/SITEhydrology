@@ -77,8 +77,6 @@ try
     end
     loaded.submission.localCheckedPayload=payload;if initialMode,initialEnvelope.payload=payload;loaded.submission.initialEnvelope=initialEnvelope;end;submission=loaded.submission;
     temporary=[tempname '.mat'];save(temporary,'submission','-v7.3');movefile(temporary,pendingFile,'f');
-    try,site_benchmark_background_ui('queue',fig,pendingFile,logFcn);
-    catch,logFcn('Shared benchmarks: background retry could not be configured; pending results remain local.');end
     upload=payload;if initialMode,initialEnvelope.payload=payload;upload=initialEnvelope;loaded.submission.initialEnvelope=initialEnvelope;end
     body=jsonencode(upload); bytes=unicode2native(body,'UTF-8');
     assert(numel(bytes)<=20*1024*1024,'SITE:BenchmarkSize','Submission is too large.');
@@ -156,6 +154,7 @@ try
         pr=prs(1);
     end
     result.state='submitted';result.url=pr.html_url;
+    try,site_benchmark_manual_submission('submitted',pendingFile,result.url);catch,logFcn('Shared benchmarks: request created; retry-button state could not be saved.');end
     % Keep the pending snapshot until acceptance; a submitted PR is not
     % proof that the global benchmark has changed.
     logFcn(['Shared benchmarks: proposed update submitted: ' result.url]);
