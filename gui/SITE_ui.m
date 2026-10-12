@@ -314,6 +314,7 @@ function SITE_ui(varargin)
     S.ui = struct();
     S.runtime = struct();
     S.runtime.isRunning = false;
+    S.runtime.uploadStartupReady = false;
     S.runtime.dataReady = false;
     S.runtime.stopRequested = false;
     S.runtime.postprocessAfterStop = true;
@@ -934,27 +935,10 @@ function SITE_ui(varargin)
     logmsg('SITE_ui ready.');
     refreshRetryUpload();
     try,site_benchmark_background_ui('disable',f,'',@logmsg);catch,logmsg('Could not disable legacy background upload task.');end
-    if isdeployed
-        cleanupTimer=timer('ExecutionMode','fixedSpacing','Period',300,'StartDelay',30,'BusyMode','drop','TimerFcn',@cleanupSavedSubmissions);
-        setappdata(f,'SITEBenchmarkCleanupTimer',cleanupTimer);
-        cleanupListener=addlistener(f,'ObjectBeingDestroyed',@(~,~)delete(cleanupTimer));
-        setappdata(f,'SITEBenchmarkCleanupListener',cleanupListener);start(cleanupTimer);
-    end
     drawnow
     % Optimizer-note sizing is deferred until the Training tab is opened.
     % Switching hidden tabs and forcing several full drawnow calls here was
     % a substantial startup cost.
-
-    function cleanupSavedSubmissions(~,~)
-        if ~isgraphics(f)||S.runtime.isRunning,return,end
-        if isfield(S.runtime,'benchmarkUploadBusy')&&S.runtime.benchmarkUploadBusy,return,end
-        refreshRetryUpload();
-        pending=dir(fullfile(S.cfg.dirres,'**','*_submission.mat'));
-        for p=1:numel(pending)
-            if S.runtime.isRunning,return,end
-            site_benchmark_cleanup_ui(fullfile(pending(p).folder,pending(p).name),@logmsg);
-        end
-    end
 
     % -------------------------------------------------------------
     % Initialize hidden output tabs, then reveal on the Summary tab
@@ -1072,6 +1056,8 @@ function SITE_ui(varargin)
                 MErefresh.message]);
         end
     end
+    S.runtime.uploadStartupReady=true;refreshRetryUpload();
+
     % ==========================================
     function onMainFigureButtonDown(~,~)
     % ==========================================
@@ -6104,14 +6090,14 @@ function SITE_ui(varargin)
 
     function refreshRetryUpload()
         busy=isfield(S.runtime,'benchmarkUploadBusy')&&S.runtime.benchmarkUploadBusy;
-        S.ui.btnUploadGitHub.Enable=tern(~S.runtime.isRunning&&~busy,'on','off');
+        S.ui.btnUploadGitHub.Enable=tern(S.runtime.uploadStartupReady&&~S.runtime.isRunning&&~busy,'on','off');
     end
     function finishBenchmarkRetry()
         S.runtime.benchmarkUploadBusy=false;refreshRetryUpload();
         refreshUploadWindow();
     end
     function onRetrySavedBenchmark(~,~)
-        if S.runtime.isRunning,return,end
+        if ~S.runtime.uploadStartupReady||S.runtime.isRunning,return,end
         if isfield(S.runtime,'benchmarkUploadBusy')&&S.runtime.benchmarkUploadBusy,return,end
         if isfield(S.ui,'uploadWindow')&&isgraphics(S.ui.uploadWindow),figure(S.ui.uploadWindow);refreshUploadWindow();return,end
         S.ui.uploadRegion=region_helpers('code',S.cfg);
