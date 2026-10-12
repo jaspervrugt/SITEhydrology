@@ -89,7 +89,9 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          # Older inbox PRs retain an old base SHA without this helper.
+          # Use the immutable trusted revision that supplied this workflow.
+          ref: ${{ github.workflow_sha }}
           persist-credentials: false
       - name: Merge the published numerical contribution
         env:
