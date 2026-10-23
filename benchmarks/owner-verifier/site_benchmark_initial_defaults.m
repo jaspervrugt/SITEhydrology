@@ -17,13 +17,14 @@ for k=1:4
  % Provenance uses dataset-specific names; select a matching provenance below.
  C.meteo.(fields{k})=selected;
 end
-% Products are registered by their public provenance, not client paths.
-products=cellfun(@choice,X.meteo.product.items);pets=cellfun(@choice,X.meteo.pet.items);precips=cellfun(@(s)choice(s,NaN),X.meteo.precipitation.items);temps=cellfun(@(s)choice(s,NaN),X.meteo.temperature.items);found=false;
-for a=products(:).',for b=pets(:).',for c=precips(:).',for d=temps(:).'
- meteo=struct('data',a,'pet',b,'precip',c,'temp',d);p=site_result_store('provenance',C.region,meteo);p=rmfield(p,'source');
- if site_benchmark_contract_equal(p,request.provenance),C.meteo=meteo;found=true;break,end
-end;if found,break,end;end;if found,break,end;end;if found,break,end;end
-assert(found,'SITE:InitialForcing','Forcing/PET choice is not registered.');
+% First references use only the registry defaults, never any alternative
+% forcing/PET choice supplied by the contributor.
+for k=1:4
+ fallback=1;if k>2,fallback=NaN;end
+ C.meteo.(fields{k})=choice(X.meteo.(keys{k}).default,fallback);
+end
+p=site_result_store('provenance',C.region,C.meteo);p=rmfield(p,'source');
+assert(site_benchmark_contract_equal(p,request.provenance),'SITE:InitialForcing','First references require default forcing/PET.');
 P=region_helpers('resolvepaths',R,X,dataRoot);for f={'dirD','dirM','dirQ'},C.(f{1})=P.(f{1});end
 count=X.basins.universe(1);name=sprintf(R.basin_file_pattern,count);if isfield(X.basins,'file'),name=X.basins.file;end
 C.file_univ=fullfile(region_helpers('regiondir',core,C.region),name);universe=C.file_univ;
@@ -33,6 +34,7 @@ scratch=tempname;mkdir(scratch);cleanup=onCleanup(@()rmdir(scratch,'s'));refs=ze
 s=site_result_store('load',scratch,char(names(i)),char(tags(iTag)),strings(0,1),mdl,1,refs,refs,refs,refs,refs,refs,C.region,C.meteo,C.prd);
 contract=site_benchmark_contract(s,C);if isfield(contract.loss,'fnc'),contract.loss=rmfield(contract.loss,'fnc');end
 assert(site_benchmark_profile_equal(contract,request),'SITE:InitialDefaults','Experiment differs from GUI defaults.');
+assert(isequal(contract.thMin(:),request.thMin(:))&&isequal(contract.thMax(:),request.thMax(:)),'SITE:InitialBounds','First references require default parameter bounds.');
 end
 function v=choice(s,fallback),if nargin<2,fallback=1;end;m=regexp(char(s),'^\s*(\d+)','tokens','once');v=fallback;if ~isempty(m),v=str2double(m{1});end,end
 function v=dmy(s),t=datetime(s,'InputFormat','dd/MM/yyyy');v=[day(t) month(t) year(t)];end

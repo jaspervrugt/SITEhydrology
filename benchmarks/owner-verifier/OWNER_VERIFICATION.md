@@ -1,8 +1,8 @@
 # First benchmark verification on the owner's computer
 
-SITE submits first results as a draft `SITE initial reference:` request containing numerical JSON only. They remain unavailable as benchmarks until the owner worker passes the following checks:
+SITE submits first results as a `SITE initial reference:` pull request containing numerical JSON only. Any contributor can propose a first reference. The trusted GitHub validator and App reject nondefault scientific settings; the request does not become a default on upload or merge. They remain unavailable as benchmarks until the owner worker passes the following checks:
 
-1. The experiment matches the installed GUI defaults for the dataset and resolution, including periods, spin-up, initial states, additional variables and numerical solver. Supported forcing/PET choices and registered parameter ranges are retained.
+1. The experiment matches the installed GUI defaults for the dataset, resolution and public model, including periods, spin-up, default forcing/PET, default bounds, initial states, additional variables and numerical solver. The trusted `lib/site_initial_defaults.json` allowlist also enforces these settings in GitHub validation. Optimizer, trial count and stopping budgets may differ.
 2. Prepared forcing and observations match the submitted SHA-256 input fingerprints.
 3. Trusted local model code replays the submitted parameter values and reproduces their metrics. The existing numerical tolerances apply.
 
@@ -10,7 +10,15 @@ The worker uses the owner's installed Data and trusted SAGE/SITE code. It never 
 
 After verification, an atomic GitHub commit registers the reference and publishes its snapshot, native checkpoint, parameter workbook, parameter ranges and model summary. Concurrent archive changes cause a safe retry against the new version. Failed checks remain unpublished for owner review. Existing unregistered native archives are held for review rather than overwritten.
 
-The public model implementations and supplied GR4J-B user_model are supported. Custom or private model definitions need a separate trusted setup.
+The seven registered public model implementations are supported. Custom and private model definitions remain local and need a separate reviewed default registration.
+
+## Owner review and notification
+
+The trusted `pull_request_target` workflow validates numerical JSON using base-branch code, then requests `jaspervrugt` as reviewer. GitHub email delivery follows the owner's notification preferences. It never executes a contributor's source or workflows. Legacy draft proposals receive a single owner mention instead.
+
+For an external contributor, the worker requires an APPROVED review by `jaspervrugt` on the exact current PR head. Changed or dismissed approvals do not authorize publication. Owner-authored requests count as explicit owner authorization. Approval allows trusted numerical replay; publication still requires all fingerprint and score checks to pass. Approval is checked again immediately before publication. Unapproved requests remain queued.
+
+The client and server policy files must be regenerated together when authoritative GUI defaults change; do not copy a contributor's contract into the allowlist.
 
 ## Owner installation
 

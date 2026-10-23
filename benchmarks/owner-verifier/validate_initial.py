@@ -1,6 +1,10 @@
 """Structural checks only; approval requires owner defaults and numerical replay."""
 import re
+import sys
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).parent/'lib'))
 from validate_submission import validate
+from initial_policy import require_contract
 
 def validate_initial(envelope):
  if set(envelope)!={'schema','kind','payload','inputFingerprints'} or envelope['schema']!=1 or envelope['kind']!='owner_initial_reference':raise ValueError('Invalid initial envelope')
@@ -15,6 +19,8 @@ def validate_initial(envelope):
   ids.add(row['basin'])
  if not isinstance(payload.get('profile'),str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,99}',payload['profile']):raise ValueError('Invalid profile label')
  profile={'id':payload['profile'],'enabled':True,'contract':payload['contract'],'basinIds':list(ids)}
+ records=payload['records'];records=[records] if isinstance(records,dict) else records
+ require_contract(payload['contract'],records)
  report=validate(payload,{'profiles':[profile]})
  records=payload['records'];records=[records] if isinstance(records,dict) else records
  if {r['basin'] for r in records}!=ids:raise ValueError('Fingerprints do not cover submitted basins exactly')

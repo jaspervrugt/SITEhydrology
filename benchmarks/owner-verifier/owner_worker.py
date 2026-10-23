@@ -1,5 +1,5 @@
 """Owner-controlled polling worker. Never check out or execute proposal code."""
-import argparse,base64,hashlib,json,os,re,subprocess,sys,time
+import argparse,base64,hashlib,json,os,re,subprocess,sys,time,shutil
 from pathlib import Path
 HERE=Path(__file__).resolve().parent
 sys.path.insert(0,str(HERE/'lib'))
@@ -8,9 +8,10 @@ from validate_initial import validate_initial
 from publish_verified import publish,atomic_write,canonical
 from regional_result_paths import result_paths
 REPO='jaspervrugt/SITEhydrology'
+GH=shutil.which('gh') or str(Path(os.environ.get('ProgramFiles','C:/Program Files'))/'GitHub CLI/gh.exe')
 
 def api(endpoint,method='GET',body=None,work=HERE):
- args=['gh','api','repos/'+REPO+'/'+endpoint,'--method',method]
+ args=[GH,'api','repos/'+REPO+'/'+endpoint,'--method',method]
  if body is not None:
   f=Path(work)/'api-request.json';f.write_text(json.dumps(body));args+=['--input',str(f)]
  result=subprocess.run(args,capture_output=True,text=True,encoding='utf-8',timeout=120)
@@ -34,6 +35,19 @@ def proposal_files(files):
   if not re.fullmatch(r'benchmarks/initial-inbox/[0-9a-f]{64}\.json',f['filename']) or f['status'] not in ('added','modified'):raise ValueError('Initial proposals may contain numerical JSON only')
  return files
 
+def owner_approved(pr):
+ # Self-authored owner requests are explicit authorization; external
+ # proposals require an owner approval of the exact current revision.
+ if pr['user']['login'].lower()=='jaspervrugt':return True
+ decisive=[]
+ for page in range(1,101):
+  batch=api('pulls/'+str(pr['number'])+'/reviews?per_page=100&page='+str(page))
+  decisive.extend(r for r in batch if r['user']['login'].lower()=='jaspervrugt'
+      and r['state'] in ('APPROVED','CHANGES_REQUESTED','DISMISSED'))
+  if len(batch)<100:break
+ return bool(decisive and decisive[-1]['state']=='APPROVED'
+             and decisive[-1]['commit_id']==pr['head']['sha'])
+
 def matlab(config,command,job,revision):
  env=dict(os.environ,SITE_OWNER_REVISION=revision)
  log=Path(job)/('matlab-'+str(time.time_ns())+'.log')
@@ -53,8 +67,10 @@ def source_revision(config):
 
 def site_open():
  if os.name=='nt':
-  r=subprocess.run(['tasklist','/FI','IMAGENAME eq SITE.exe','/FO','CSV','/NH'],capture_output=True,text=True,timeout=20)
-  return '"SITE.exe"' in r.stdout
+  for name in ('SITE.exe','SITEhydrology.exe'):
+   r=subprocess.run(['tasklist','/FI','IMAGENAME eq '+name,'/FO','CSV','/NH'],capture_output=True,text=True,timeout=20)
+   if ('"'+name+'"').lower() in r.stdout.lower():return True
+  return False
  return subprocess.run(['pgrep','-x','SITE'],capture_output=True).returncode==0
 
 def process_running(pid):
@@ -92,6 +108,9 @@ def uniform_profiles(manifest,profile):
  return dict(manifest,profiles=[{k:p.get(k) for k in sorted(fields)} for p in rows])
 
 def publish_job(job,config,revision,pr,head):
+ reviewed=api('pulls/'+str(pr))
+ if reviewed['head']['sha']!=head or not owner_approved(reviewed):
+  raise RuntimeError('Owner approval of the current proposal is required')
  profile=read_json(job/'owner-profile.json');candidate=read_json(job/'candidate.json')
  parent=api('git/ref/heads/main')['object']['sha'];before=json.loads(blob(contents('benchmarks/profiles.json',parent)['sha']))
  manifest=uniform_profiles(before,profile);pub=job/'publication';pub.mkdir(exist_ok=True)
@@ -100,7 +119,7 @@ def publish_job(job,config,revision,pr,head):
  previous=index['profiles'].get(profile['id'])
  if previous:
   digest=previous['sha256'];name=profile['id']+'_'+digest+'.json';dest=pub/previous['path'];dest.parent.mkdir(parents=True,exist_ok=True)
-  subprocess.run(['gh','release','download','site-benchmarks','--repo',REPO,'--pattern',name,'--dir',str(job),'--clobber'],check=True)
+  subprocess.run([GH,'release','download','site-benchmarks','--repo',REPO,'--pattern',name,'--dir',str(job),'--clobber'],check=True)
   raw=(job/name).read_bytes()
   if hashlib.sha256(raw).hexdigest()!=digest:raise ValueError('Snapshot checksum differs')
   dest.write_bytes(raw)
@@ -130,14 +149,15 @@ def publish_job(job,config,revision,pr,head):
  assets=api('releases/tags/site-benchmarks')['assets'];known=next((a for a in assets if a['name']==name),None)
  if known:
   if known.get('digest')!='sha256:'+entry['sha256']:raise ValueError('Immutable snapshot asset differs')
- else:subprocess.run(['gh','release','upload','site-benchmarks',str(asset),'--repo',REPO],check=True)
+ else:subprocess.run([GH,'release','upload','site-benchmarks',str(asset),'--repo',REPO],check=True)
  entry['downloadUrl']='https://github.com/'+REPO+'/releases/download/site-benchmarks/'+name
  files={path:(pub/path).read_bytes() for path in paths}
  files.update({'benchmarks/profiles.json':canonical(manifest),'benchmarks/index.json':canonical(index)})
  worker=contents('benchmarks/worker/worker-config.json',parent);configs=json.loads(blob(worker['sha']))
  public_run=read_json(job/'public-run.json');configs['profiles']=[p for p in configs['profiles'] if p['id']!=profile['id']]+[{'id':profile['id'],'run':public_run}]
  files['benchmarks/worker/worker-config.json']=canonical(configs)
- if api('pulls/'+str(pr))['head']['sha']!=head:raise RuntimeError('Proposal changed; verify its new revision')
+ current=api('pulls/'+str(pr))
+ if current['head']['sha']!=head or not owner_approved(current):raise RuntimeError('Proposal or owner approval changed; reverify before publication')
  if source_revision(config)!=revision:raise RuntimeError('Owner code changed during export; reverify before publication')
  if api('git/ref/heads/main')['object']['sha']!=parent:raise RuntimeError('Public results advanced; repeat the merge against current files')
  entries=[]
@@ -154,7 +174,7 @@ def run(config,dry_run=False):
  revision=source_revision(config);state=Path(config['state']);state.mkdir(parents=True,exist_ok=True);lock=state/'worker.lock'
  if not acquire_lock(lock):return {'state':'waiting','reason':'An owner verification is already running.'}
  try:
-  login=json.loads(subprocess.check_output(['gh','api','user'],text=True,encoding='utf-8'))['login']
+  login=json.loads(subprocess.check_output([GH,'api','user'],text=True,encoding='utf-8'))['login']
   if login.lower()!='jaspervrugt':raise RuntimeError('Owner GitHub sign-in is required')
   seen_file=state/'processed.json';seen=read_json(seen_file) if seen_file.exists() else {};reports=[]
   prs=[]
@@ -166,6 +186,9 @@ def run(config,dry_run=False):
    if not pr['title'].startswith('SITE initial reference:'):continue
    head=pr['head']['sha'];key=str(pr['number'])+':'+head
    if key in seen:continue
+   if not owner_approved(pr):
+    reports.append({'state':'awaiting_owner_approval','request':pr['number']})
+    continue
    files=proposal_files(api('pulls/'+str(pr['number'])+'/files?per_page=100'))
    for f in files:
     raw=blob(f['sha']);digest=hashlib.sha256(raw).hexdigest()
@@ -190,7 +213,9 @@ def run(config,dry_run=False):
     except (ValueError,RuntimeError,subprocess.SubprocessError) as error:
      result={'state':'pending' if verified and isinstance(error,(RuntimeError,subprocess.SubprocessError)) else 'needs_review','request':pr['number'],'reason':type(error).__name__,'log':str(job)}
     reports.append(result)
-    if not dry_run and result['state']!='pending':seen[key]=result;atomic_write(seen_file,canonical(seen))
+    # Missing owner data or failed checks stay recoverable. The owner may
+    # fix the local installation and retry the same approved revision.
+    if not dry_run and result['state'] in ('published','current'):seen[key]=result;atomic_write(seen_file,canonical(seen))
    break # Bound each scheduled run to one proposal.
   return {'state':'complete','reports':reports}
  finally:(lock/'pid.json').unlink();lock.rmdir()
