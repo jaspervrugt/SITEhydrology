@@ -1,0 +1,21 @@
+name: Test first-upload defaults and owner approval
+on:
+  pull_request:
+    paths:
+      - 'benchmarks/owner-verifier/**'
+      - 'benchmarks/notify_initial_owner.py'
+      - 'benchmarks/test_notify_initial_owner.py'
+      - '.github/workflows/benchmark-initial-*.yml'
+permissions:
+  contents: read
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Test default contracts and owner publication gate
+        run: python3 -m unittest discover -s benchmarks/owner-verifier -p test_owner_worker.py
+      - name: Test notification idempotency without network calls
+        run: python3 -m unittest discover -s benchmarks -p test_notify_initial_owner.py

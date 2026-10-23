@@ -1,0 +1,30 @@
+name: Request owner review for first SITE results
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - 'benchmarks/initial-inbox/*.json'
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      # Trusted base code only. Never execute contributor files or workflows.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - name: Check numerical structure and scientific defaults
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 benchmarks/check_initial_pull_request.py
+      - name: Request the owner's review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 benchmarks/notify_initial_owner.py

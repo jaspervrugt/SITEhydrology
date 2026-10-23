@@ -8,9 +8,12 @@ ROOT=Path(__file__).resolve().parents[2]
 
 class InitialTests(unittest.TestCase):
  def setUp(self):
-  fixture=ROOT/'benchmarks/tests/hbv_candidate.json'
-  if not fixture.exists():fixture=ROOT/'.codex-work/site-parameter-ranges/benchmarks/tests/hbv_candidate.json'
-  p=json.loads(fixture.read_text());p['records']=p['records'][:1]
+  defaults=json.loads((Path(__file__).parent/'lib/site_initial_defaults.json').read_text())
+  c=defaults['contracts']['CAMELS_FI|daily|hymod'];lo,hi=c['thMin'],c['thMax']
+  p={'schema':1,'origin':'SITE_Python_GUI','profile':'pending_initial_reference',
+     'contract':c,'records':[{'basin':'1','metric':'NSE','theta':[(a+b)/2 for a,b in zip(lo,hi)],
+     'normalized':[.5]*len(lo),'train':.9,'evaluation':.8,'optimizedLoss':'gls',
+     'optimizer':5,'runtime':1.,'updated':'2026-10-23'}]}
   self.envelope={'schema':1,'kind':'owner_initial_reference','payload':p,'inputFingerprints':{'schema':1,'algorithm':'sha256-input-v1','records':[{'basin':p['records'][0]['basin'],'sha256':'1'*64}]}}
  def test_structural_only(self):self.assertEqual(validate_initial(self.envelope)['records'],1)
  def test_missing_hash(self):
@@ -57,5 +60,25 @@ class InitialTests(unittest.TestCase):
    lock=Path(tmp)/'lock';lock.mkdir();(lock/'pid.json').write_text('{"pid":1}')
    with patch.object(worker,'process_running',return_value=False):self.assertTrue(worker.acquire_lock(lock))
    self.assertNotEqual(json.loads((lock/'pid.json').read_text())['pid'],1)
+ def test_nondefault_period_and_bounds_rejected(self):
+  changed=copy.deepcopy(self.envelope);changed['payload']['contract']['period']='changed'
+  with self.assertRaisesRegex(ValueError,'defaults'):validate_initial(changed)
+  changed=copy.deepcopy(self.envelope);c=changed['payload']['contract']
+  changed['payload']['records'][0]['parameterRange']={'id':1,'thMin':c['thMin'][:],'thMax':c['thMax'][:]}
+  changed['payload']['records'][0]['parameterRange']['thMin'][0]+=1
+  with self.assertRaisesRegex(ValueError,'bounds'):validate_initial(changed)
+ def test_owner_approval_is_bound_to_current_head(self):
+  pr={'number':1,'user':{'login':'contributor'},'head':{'sha':'new'}}
+  review={'user':{'login':'jaspervrugt'},'state':'APPROVED','commit_id':'old'}
+  with patch.object(worker,'api',return_value=[review]):self.assertFalse(worker.owner_approved(pr))
+  review['commit_id']='new'
+  with patch.object(worker,'api',return_value=[review]):self.assertTrue(worker.owner_approved(pr))
+  review['state']='DISMISSED'
+  with patch.object(worker,'api',return_value=[review]):self.assertFalse(worker.owner_approved(pr))
+ def test_unapproved_request_cannot_enter_publication(self):
+  pr={'number':1,'user':{'login':'contributor'},'head':{'sha':'new'}}
+  with patch.object(worker,'api',return_value=pr),patch.object(worker,'owner_approved',return_value=False):
+   with self.assertRaisesRegex(RuntimeError,'Owner approval'):
+    worker.publish_job(Path('unused'),{},'revision',1,'new')
 
 if __name__=='__main__':unittest.main()

@@ -16,6 +16,8 @@ if strcmp(phase,'prepare')
  % The client keeps the actual bounds for each fit; default bounds identify the model.
  for k=1:numel(candidate.records)
   if ~isfield(candidate.records(k),'parameterRange'),candidate.records(k).parameterRange=struct('id',1,'thMin',request.contract.thMin,'thMax',request.contract.thMax);end
+  b=candidate.records(k).parameterRange;
+  assert(isequal(b.thMin(:),contract.thMin(:))&&isequal(b.thMax(:),contract.thMax(:)),'SITE:InitialBounds','Submitted fit uses nondefault bounds.');
  end
  write(fullfile(job,'candidate.json'),candidate);write(fullfile(job,'owner-profile.json'),profile);write(fullfile(job,'manifest.json'),struct('schema',1,'profiles',profile));
  save(fullfile(job,'owner-context.mat'),'C');return
