@@ -10,9 +10,19 @@ assert(profile.enabled && site_benchmark_contract_equal(profile.contract,contrac
 for key={'precip','temp'},if isempty(C.meteo.(key{1})),C.meteo.(key{1})=NaN;end,end
 definition=struct('model',C.model,'mcode',C.mcode,'calc','seq');
 if C.model==99,definition.user_model_folder=fullfile(coreRoot,'user_model');addpath(definition.user_model_folder);end
-mdl=read_model(definition,C.prd,false);
-mdl=apply_model_configuration(mdl,read_numsettings(C.ode));
-assert(strcmp(model_run_configuration(mdl).identity,contract.configuration));
+if ismember(C.model,[18 19])
+    % These interval models initialize internally. Export their approved
+    % result schema without loading a simulation kernel from the pinned core.
+    names={'cartplus','cart'};
+    assert(strcmp(contract.model,names{C.model-17}) && isempty(contract.configuration));
+    mdl=struct('par_names',{contract.parNames},'th_min',contract.thMin,'th_max',contract.thMax);
+    mdl.export_configuration=struct('identity','','suffix','','changed',false, ...
+        'rows',{{'Section','Symbol','Description','Unit','Default','Used','Changed'}});
+else
+    mdl=read_model(definition,C.prd,false);
+    mdl=apply_model_configuration(mdl,read_numsettings(C.ode));
+    assert(strcmp(model_run_configuration(mdl).identity,contract.configuration));
+end
 % A clean destination avoids inheriting stale or unverified local scores.
 scratch=tempname;mkdir(scratch);cleanup=onCleanup(@()rmdir(scratch,'s')); %#ok<NASGU>
 ids=string(profile.basinIds(:));numeric=str2double(ids);

@@ -44,7 +44,7 @@ scopeDir = local_result_scope(resultDir,region,dtTag);
     scopeDir,dtTag,prd,false);
 suffix = sprintf('%s_p%03d',provenance.tag,paths.periodID);
 if nargin>=7 && ~isempty(mdl)
-    configuration=model_run_configuration(mdl);
+    configuration=result_configuration(mdl);
     suffix=[suffix configuration.suffix];
 end
 paths.periodDir = fullfile(scopeDir, ...
@@ -120,7 +120,7 @@ store.fdcD0pt = fdcD0pt;
 store.fdcD0pe = fdcD0pe;
 store.fdcD0logpt = fdcD0logpt;
 store.fdcD0logpe = fdcD0logpe;
-store.configuration=model_run_configuration(mdl);
+store.configuration=result_configuration(mdl);
 paths = local_paths(resultDir,modelName,dtTag,region,meteo,prd,mdl);
 if ~isfolder(paths.resultDir), mkdir(paths.resultDir); end
 store.resultDir = paths.resultDir;
@@ -868,3 +868,12 @@ if isfield(b,'source'),b=rmfield(b,'source');end
 same=isequaln(a,b);
 end
 
+
+
+function configuration=result_configuration(mdl)
+if isfield(mdl,'export_configuration')
+    configuration=mdl.export_configuration;
+else
+    configuration=model_run_configuration(mdl);
+end
+end
