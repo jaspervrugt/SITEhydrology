@@ -51,7 +51,13 @@ s.sharedBenchmarkContract=contract;s.sharedBenchmarkProfile=snapshot.profile;
 relative=strrep(s.fileMat,[outputRoot filesep],'');previous=fullfile(outputRoot,'inputs',relative);
 if isfile(previous)
     old=load(previous,'store');old=old.store;
-    assert(site_benchmark_profile_equal(site_benchmark_contract(old,C),contract));
+    if isfield(old,'sharedBenchmarkContract') && isfield(old,'sharedBenchmarkProfile')
+        assert(strcmp(old.sharedBenchmarkProfile,snapshot.profile));
+        priorContract=old.sharedBenchmarkContract;
+    else
+        priorContract=site_benchmark_contract(old,C);
+    end
+    assert(site_benchmark_profile_equal(priorContract,contract));
     [found,rows]=ismember(ids,string(old.ids));assert(all(found));
     % Preserve historical counts and FDC references, while scores come only
     % from the independently verified snapshot above.
